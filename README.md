@@ -33,3 +33,7 @@ Authentication Details:
 
 - username: admin
 - password: Admin1!
+
+Start development server, will watch src/ and recompile assets:
+
+    npm start

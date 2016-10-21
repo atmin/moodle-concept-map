@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="https://unpkg.com/tachyons@4.5.3/css/tachyons.min.css" />
+</head>
+<body class="w-100 sans-serif">
+  <div
+    class="moodle-concept-map"
+    data-config='{
+      "vertices": [{
+        "id": 1,
+        "label": "Test 1"
+      }, {
+        "id": 2,
+        "label": "Test 2"
+      }],
+
+      "edges": [{
+        "from": 1,
+        "to": 2,
+        "label": "relates to"
+      }]
+    }'>
+    JavaScript needed to render this component
+  </div>
+  <script src="moodle-concept-map.js"></script>
+</body>
+</html>
