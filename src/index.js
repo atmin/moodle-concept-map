@@ -13,7 +13,10 @@ const lineTransform = (x1, y1, x2, y2, units) => {
   const deltaX = x2 - x1;
   const deltaY = y2 - y1;
   const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-  const angle = Math.acos(deltaX / length);
+  let angle = Math.acos(deltaX / length);
+  if (deltaY < 0) {
+    angle = -angle;
+  }
   return `transform: rotate(${angle}rad); width: ${length}${units}`;
 };
 
@@ -27,8 +30,10 @@ const vertex = data => {
 
   return (
     <div
+      contenteditable
       data-id={id}
       draggable={'true'}
+      className={'Vertex'}
       style={`
         background: ${theme.vertexBackground};
         border: ${theme.vertexBorder};
@@ -69,13 +74,15 @@ const edge = data => {
           height: ${edgeThickness}${units};
           ${lineTransform(from.left, from.top, to.left, to.top, units)}
         `} />
-      <div style={`
-        background: ${theme.edgeLabelBackground};
-        position: absolute;
-        left: ${labelLeft}${units};
-        top: ${labelTop}${units};
-        transform: translate(-50%, -50%);
-      `}>
+      <div
+        contenteditable
+        style={`
+          background: ${theme.edgeLabelBackground};
+          position: absolute;
+          left: ${labelLeft}${units};
+          top: ${labelTop}${units};
+          transform: translate(-50%, -50%);
+        `}>
         {label}
       </div>
     </div>
@@ -120,13 +127,13 @@ bind('.ConceptMap', conceptMap);
 
 const dragVertex = event => {
   const root = document.querySelector('.ConceptMap');
-  const id = event.target.dataset.id;
+  const target = event.target;
+  const id = target.dataset.id;
   const config = JSON.parse(root.dataset.config);
   const vertex = config.vertices.filter(vertex => vertex.id == id)[0];
   vertex.left += event.offsetX;
-  vertex.top += event.offsetY;
+  vertex.top += event.offsetY - target.clientHeight;
   root.dataset.config = JSON.stringify(config);
 };
 
-document.addEventListener('drag', dragVertex);
 document.addEventListener('dragend', dragVertex);

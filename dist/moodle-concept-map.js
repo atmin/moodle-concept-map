@@ -1170,6 +1170,9 @@ var lineTransform = function (x1, y1, x2, y2, units) {
   var deltaY = y2 - y1;
   var length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
   var angle = Math.acos(deltaX / length);
+  if (deltaY < 0) {
+    angle = -angle;
+  }
   return ("transform: rotate(" + angle + "rad); width: " + length + units);
 };
 
@@ -1181,7 +1184,7 @@ var vertex = function (data) {
 
   return (
     h( 'div', {
-      'data-id': id, draggable: 'true', style: ("\n        background: " + (theme.vertexBackground) + ";\n        border: " + (theme.vertexBorder) + ";\n        border-radius: " + (theme.vertexBorderRadius) + ";\n        position: absolute;\n        left: " + left + "px;\n        top: " + top + "px;\n        padding: 0.5em 1em;\n        transform: translate(-50%, -50%);\n        z-index: 1;\n      ") },
+      contenteditable: true, 'data-id': id, draggable: 'true', className: 'Vertex', style: ("\n        background: " + (theme.vertexBackground) + ";\n        border: " + (theme.vertexBorder) + ";\n        border-radius: " + (theme.vertexBorderRadius) + ";\n        position: absolute;\n        left: " + left + "px;\n        top: " + top + "px;\n        padding: 0.5em 1em;\n        transform: translate(-50%, -50%);\n        z-index: 1;\n      ") },
       label
     )
   );
@@ -1203,7 +1206,8 @@ var edge = function (data) {
     h( 'div', null,
       h( 'div', {
         className: 'Edge', style: ("\n          left: " + (from.left) + units + ";\n          top: " + (from.top) + units + ";\n          height: " + edgeThickness + units + ";\n          " + (lineTransform(from.left, from.top, to.left, to.top, units)) + "\n        ") }),
-      h( 'div', { style: ("\n        background: " + (theme.edgeLabelBackground) + ";\n        position: absolute;\n        left: " + labelLeft + units + ";\n        top: " + labelTop + units + ";\n        transform: translate(-50%, -50%);\n      ") },
+      h( 'div', {
+        contenteditable: true, style: ("\n          background: " + (theme.edgeLabelBackground) + ";\n          position: absolute;\n          left: " + labelLeft + units + ";\n          top: " + labelTop + units + ";\n          transform: translate(-50%, -50%);\n        ") },
         label
       )
     )
@@ -1243,13 +1247,13 @@ bind('.ConceptMap', conceptMap);
 
 var dragVertex = function (event) {
   var root = document.querySelector('.ConceptMap');
-  var id = event.target.dataset.id;
+  var target = event.target;
+  var id = target.dataset.id;
   var config = JSON.parse(root.dataset.config);
   var vertex = config.vertices.filter(function (vertex) { return vertex.id == id; })[0];
   vertex.left += event.offsetX;
-  vertex.top += event.offsetY;
+  vertex.top += event.offsetY - target.clientHeight;
   root.dataset.config = JSON.stringify(config);
 };
 
-document.addEventListener('drag', dragVertex);
 document.addEventListener('dragend', dragVertex);
