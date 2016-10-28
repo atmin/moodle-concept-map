@@ -758,16 +758,51 @@ var bind = function (selector, view, options) {
   selectors[selector] = selectors[selector] || init;
 };
 
+var vertex = function (data) {
+  var label = data.label;
+  var left = data.left;
+  var top = data.top;
+  var border = '1px solid #999';
+  var borderRadius = '5px';
+
+  return (
+    h( 'div', { style: ("\n      border: " + border + ";\n      border-radius: " + borderRadius + ";\n      position: absolute;\n      left: " + left + "px;\n      top: " + top + "px;\n      padding: 0.5em 1em;\n    ") },
+      label
+    )
+  );
+};
+
+var edge = function (data) {
+  return (
+    h( 'div', null,
+      h( 'div', null, data.from.label ),
+      h( 'div', null, data.to.label )
+    )
+  );
+};
+
 var conceptMap = function (data) {
   var ref = JSON.parse(data.config);
-  var vertices = ref.vertices;
   var edges = ref.edges;
+  var vertices = ref.vertices;
+
+  var verticesById = vertices.reduce(function (result, item) {
+    result[item.id] = item;
+    return result;
+  }, {});
+
   return (
     h( 'body', null,
-      h( 'p', null,
-        vertices.length + '', " vertices" ),
-      h( 'p', null,
-        edges.length + '', " edges" ),
+      h( 'div', { style: "\n        position: relative;\n      " },
+        edges.map(function (item) { return edge(Object.assign({}, item,
+          {from: verticesById[item.from],
+          to: verticesById[item.to]})); }),
+
+        vertices.map(function (item) { return vertex(item); }),
+
+        h( 'div', { style: "\n          position: absolute;\n          left: 0;\n          top: 0;\n          width: 300px;\n          height: 0;\n          border-top: 1px solid black;\n          transform: rotate(30deg) translate(100px, 100px);\n        " })
+      ),
+
       h( 'a', { href: "http://jsfiddle.net/NPC42/25E8W/8/" }, "JSFiddle how to draw arbitrary line in 1 HTML element")
     )
   );
