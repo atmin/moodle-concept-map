@@ -2,11 +2,36 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="https://unpkg.com/tachyons@4.5.3/css/tachyons.min.css" />
+  <style>
+    body {
+      font-family: sans-serif;
+    }
+    .ConceptMap {
+      width: 30em;
+      margin: 2em auto;
+    }
+    .Edge {
+      position: absolute;
+      transform-origin: top left;
+    }
+    .Edge:hover {
+      cursor: pointer;
+    }
+    .Edge:before {
+      content: '';
+      display: block;
+      height: 0;
+      width: 100%;
+      border-top: 1px solid #666;
+    }
+    .Edge:hover:before {
+      border-top: 1px solid #AAA;
+    }
+  </style>
 </head>
-<body class="w-100 sans-serif">
+<body>
   <div
-    class="moodle-concept-map"
+    class="ConceptMap"
     data-config='{
       "vertices": [{
         "id": 1,
@@ -16,14 +41,27 @@
       }, {
         "id": 2,
         "label": "Test 2",
-        "left": 200,
-        "top": 200
+        "left": 250,
+        "top": 300
+      }, {
+        "id": 3,
+        "label": "Something else",
+        "left": 20,
+        "top": 400
       }],
 
       "edges": [{
         "from": 1,
         "to": 2,
         "label": "relates to"
+      }, {
+        "from": 1,
+        "to": 3,
+        "label": "another relation"
+      }, {
+        "from": 2,
+        "to": 3,
+        "label": "2 links 3"
       }]
     }'>
     JavaScript needed to render this component

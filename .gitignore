@@ -1,3 +1,4 @@
+*.swp
 .vagrant
 moodle
 node_modules
