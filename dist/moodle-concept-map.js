@@ -700,6 +700,7 @@ var svgTags = [
   'set', 'stop', 'switch', 'symbol', 'text', 'textPath', 'title', 'tref',
   'tspan', 'use', 'view', 'vkern',
 ];
+var kebabCase = function (str) { return str.replace(/[A-Z]/g, function (letter, pos) { return '-' + letter.toLowerCase(); }); };
 var h = function (nodeName, attributes) {
   var children = [], len = arguments.length - 2;
   while ( len-- > 0 ) children[ len ] = arguments[ len + 2 ];
@@ -708,7 +709,11 @@ var h = function (nodeName, attributes) {
     document.createElementNS(svgns, nodeName) :
     document.createElement(nodeName);
   var setAttribute = function (attr) {
-    node.setAttribute(specialAttrs[attr] || attr, attributes[attr]);
+    var value = typeof attributes[attr] === 'object' ?
+      Object.keys(attributes[attr])
+        .map(function (key) { return ((kebabCase(key)) + ":" + (attributes[attr][key])); })
+        .join(';') : attributes[attr];
+    node.setAttribute(specialAttrs[attr] || attr, value);
   };
   Object.keys(attributes || {}).forEach(setAttribute);
   children.forEach(function (child) {
@@ -752,6 +757,9 @@ var bind = function (selector, view, options) {
       attributes: true,
       childList: true,
     });
+    if (typeof view.init === 'function') {
+      view.init(node);
+    }
     render(node);
   };
   [].slice.call(document.querySelectorAll(selector)).forEach(init);
@@ -1159,6 +1167,7 @@ var DragDropTouch;
 
 var theme = {
   edgeBorder: '1px solid #666',
+  edgeBorderDragging: '1px dashed #666',
   edgeLabelBackground: 'rgba(255, 255, 255, 0.8)',
   vertexBackground: 'white',
   vertexBorder: '1px solid #999',
@@ -1173,7 +1182,10 @@ var lineTransform = function (x1, y1, x2, y2, units) {
   if (deltaY < 0) {
     angle = -angle;
   }
-  return ("transform: rotate(" + angle + "rad); width: " + length + units);
+  return {
+    transform: ("rotate(" + angle + "rad)"),
+    width: ("" + length + units),
+  };
 };
 
 var vertex = function (data) {
@@ -1184,8 +1196,19 @@ var vertex = function (data) {
 
   return (
     h( 'div', {
-      contenteditable: true, 'data-id': id, draggable: 'true', className: 'Vertex', style: ("\n        background: " + (theme.vertexBackground) + ";\n        border: " + (theme.vertexBorder) + ";\n        border-radius: " + (theme.vertexBorderRadius) + ";\n        position: absolute;\n        left: " + left + "px;\n        top: " + top + "px;\n        padding: 0.5em 1em;\n        transform: translate(-50%, -50%);\n        z-index: 1;\n      ") },
-      label
+      'data-id': id, draggable: 'true', className: 'Vertex', style: {
+        background: theme.vertexBackground,
+        border: theme.vertexBorder,
+        borderRadius: theme.vertexBorderRadius,
+        position: 'absolute',
+        left: (left + "px"),
+        top: (top + "px"),
+        padding: '0.5em 1em',
+        transform: 'translate(-50%, -50%)',
+        zIndex: 1,
+      } },
+      h( 'span', {
+        style: 'cursor: text' }, label)
     )
   );
 };
@@ -1205,14 +1228,40 @@ var edge = function (data) {
   return (
     h( 'div', null,
       h( 'div', {
-        className: 'Edge', style: ("\n          left: " + (from.left) + units + ";\n          top: " + (from.top) + units + ";\n          height: " + edgeThickness + units + ";\n          " + (lineTransform(from.left, from.top, to.left, to.top, units)) + "\n        ") }),
+        className: 'Edge', style: Object.assign({}, {left: ("" + (from.left) + units),
+          top: ("" + (from.top) + units),
+          height: ("" + edgeThickness + units)},
+          lineTransform(from.left, from.top, to.left, to.top, units)) }),
       h( 'div', {
-        contenteditable: true, style: ("\n          background: " + (theme.edgeLabelBackground) + ";\n          position: absolute;\n          left: " + labelLeft + units + ";\n          top: " + labelTop + units + ";\n          transform: translate(-50%, -50%);\n        ") },
+        style: {
+          background: theme.edgeLabelBackground,
+          position: 'absolute',
+          left: ("" + labelLeft + units),
+          top: ("" + labelTop + units),
+          transform: 'translate(-50%, -50%)',
+        } },
         label
       )
     )
   );
 };
+
+var helpPane = (
+  h( 'ul', { style: {
+    fontSize: '60%',
+    listStyleType: 'none',
+    margin: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  } },
+    h( 'li', null, "Double-tap map to add node" ),
+    h( 'li', null, "Tap a node to select" ),
+    h( 'li', null, "Drag a node to move" ),
+    h( 'li', null, "Drag selected node connector circle to another node to create edge" ),
+    h( 'li', null, "Double-tap a node to edit, empty label to delete" )
+  )
+);
 
 var conceptMap = function (data) {
   var ref = JSON.parse(data.config);
@@ -1226,34 +1275,52 @@ var conceptMap = function (data) {
 
   return (
     h( 'body', null,
-      h( 'div', { style: "\n        position: relative;\n      " },
+      h( 'div', { style: {position: 'relative'} },
         edges.map(function (item) { return edge(Object.assign({}, item,
           {from: verticesById[item.from],
           to: verticesById[item.to]})); }),
 
-        vertices.map(function (item) { return vertex(item); })
+        vertices.map(function (item) { return vertex(item); }),
+
+        helpPane
       )
     )
   );
 };
 
-bind('.ConceptMap', conceptMap);
+conceptMap.init = function (node) {
+  var getConfig = function () { return JSON.parse(node.dataset.config); };
+  var setConfig = function (config) { return node.dataset.config = JSON.stringify(config); };;
 
+  var events = {
+    dblclick: function (event) {
+      var config = getConfig();
+      config.vertices.push({
+        id: Math.random(),
+        label: 'Untitled',
+        left: event.offsetX,
+        top: event.offsetY,
+      });
+      setConfig(config);
+    },
 
+    dragstart: function (event) {
+      // async so only drag origin element is affected and not dragged screenshot
+      setTimeout(function () { return event.target.style.border = theme.edgeBorderDragging; });
+    },
 
+    dragend: function (event) {
+      var target = event.target;
+      var id = target.dataset.id;
+      var config = getConfig();
+      var vertex = config.vertices.filter(function (vertex) { return vertex.id == id; })[0];
+      vertex.left += event.offsetX;
+      vertex.top += event.offsetY - target.clientHeight;
+      setConfig(config);
+    },
+  };
 
-
-
-
-var dragVertex = function (event) {
-  var root = document.querySelector('.ConceptMap');
-  var target = event.target;
-  var id = target.dataset.id;
-  var config = JSON.parse(root.dataset.config);
-  var vertex = config.vertices.filter(function (vertex) { return vertex.id == id; })[0];
-  vertex.left += event.offsetX;
-  vertex.top += event.offsetY - target.clientHeight;
-  root.dataset.config = JSON.stringify(config);
+  Object.keys(events).forEach(function (key) { return node.addEventListener(key, events[key]); });
 };
 
-document.addEventListener('dragend', dragVertex);
+bind('.ConceptMap', conceptMap);

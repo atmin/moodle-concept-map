@@ -27,7 +27,7 @@
   },
   "homepage": "https://github.com/atmin/moodle-concept-map#readme",
   "devDependencies": {
-    "funponent": "0.0.1",
+    "funponent": "0.3.0",
     "nodemon": "^1.11.0",
     "rollem": "^1.6.0",
     "rollup-plugin-buble": "^0.14.0",

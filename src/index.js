@@ -3,6 +3,7 @@ import './drag-drop-touch';
 
 const theme = {
   edgeBorder: '1px solid #666',
+  edgeBorderDragging: '1px dashed #666',
   edgeLabelBackground: 'rgba(255, 255, 255, 0.8)',
   vertexBackground: 'white',
   vertexBorder: '1px solid #999',
@@ -17,7 +18,10 @@ const lineTransform = (x1, y1, x2, y2, units) => {
   if (deltaY < 0) {
     angle = -angle;
   }
-  return `transform: rotate(${angle}rad); width: ${length}${units}`;
+  return {
+    transform: `rotate(${angle}rad)`,
+    width: `${length}${units}`,
+  };
 };
 
 const vertex = data => {
@@ -30,22 +34,22 @@ const vertex = data => {
 
   return (
     <div
-      contenteditable
       data-id={id}
       draggable={'true'}
       className={'Vertex'}
-      style={`
-        background: ${theme.vertexBackground};
-        border: ${theme.vertexBorder};
-        border-radius: ${theme.vertexBorderRadius};
-        position: absolute;
-        left: ${left}px;
-        top: ${top}px;
-        padding: 0.5em 1em;
-        transform: translate(-50%, -50%);
-        z-index: 1;
-      `}>
-      {label}
+      style={{
+        background: theme.vertexBackground,
+        border: theme.vertexBorder,
+        borderRadius: theme.vertexBorderRadius,
+        position: 'absolute',
+        left: `${left}px`,
+        top: `${top}px`,
+        padding: '0.5em 1em',
+        transform: 'translate(-50%, -50%)',
+        zIndex: 1,
+      }}>
+      <span
+        style={'cursor: text'}>{label}</span>
     </div>
   );
 };
@@ -68,26 +72,42 @@ const edge = data => {
     <div>
       <div
         className={'Edge'}
-        style={`
-          left: ${from.left}${units};
-          top: ${from.top}${units};
-          height: ${edgeThickness}${units};
-          ${lineTransform(from.left, from.top, to.left, to.top, units)}
-        `} />
+        style={{
+          left: `${from.left}${units}`,
+          top: `${from.top}${units}`,
+          height: `${edgeThickness}${units}`,
+          ...lineTransform(from.left, from.top, to.left, to.top, units),
+        }} />
       <div
-        contenteditable
-        style={`
-          background: ${theme.edgeLabelBackground};
-          position: absolute;
-          left: ${labelLeft}${units};
-          top: ${labelTop}${units};
-          transform: translate(-50%, -50%);
-        `}>
+        style={{
+          background: theme.edgeLabelBackground,
+          position: 'absolute',
+          left: `${labelLeft}${units}`,
+          top: `${labelTop}${units}`,
+          transform: 'translate(-50%, -50%)',
+        }}>
         {label}
       </div>
     </div>
   );
 };
+
+const helpPane = (
+  <ul style={{
+    fontSize: '60%',
+    listStyleType: 'none',
+    margin: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  }}>
+    <li>Double-tap map to add node</li>
+    <li>Tap a node to select</li>
+    <li>Drag a node to move</li>
+    <li>Drag selected node connector circle to another node to create edge</li>
+    <li>Double-tap a node to edit, empty label to delete</li>
+  </ul>
+);
 
 const conceptMap = data => {
   const {
@@ -102,9 +122,7 @@ const conceptMap = data => {
 
   return (
     <body>
-      <div style={`
-        position: relative;
-      `}>
+      <div style={{position: 'relative'}}>
         {edges.map(item => edge({
           ...item,
           from: verticesById[item.from],
@@ -112,28 +130,46 @@ const conceptMap = data => {
         }))}
 
         {vertices.map(item => vertex(item))}
+
+        {helpPane}
       </div>
     </body>
   );
 };
 
-bind('.ConceptMap', conceptMap);
+conceptMap.init = node => {
+  const getConfig = () => JSON.parse(node.dataset.config);
+  const setConfig = config => node.dataset.config = JSON.stringify(config);;
 
+  const events = {
+    dblclick: event => {
+      const config = getConfig();
+      config.vertices.push({
+        id: Math.random(),
+        label: 'Untitled',
+        left: event.offsetX,
+        top: event.offsetY,
+      });
+      setConfig(config);
+    },
 
+    dragstart: event => {
+      // async so only drag origin element is affected and not dragged screenshot
+      setTimeout(() => event.target.style.border = theme.edgeBorderDragging);
+    },
 
+    dragend: event => {
+      const target = event.target;
+      const id = target.dataset.id;
+      const config = getConfig();
+      const vertex = config.vertices.filter(vertex => vertex.id == id)[0];
+      vertex.left += event.offsetX;
+      vertex.top += event.offsetY - target.clientHeight;
+      setConfig(config);
+    },
+  };
 
-
-
-
-const dragVertex = event => {
-  const root = document.querySelector('.ConceptMap');
-  const target = event.target;
-  const id = target.dataset.id;
-  const config = JSON.parse(root.dataset.config);
-  const vertex = config.vertices.filter(vertex => vertex.id == id)[0];
-  vertex.left += event.offsetX;
-  vertex.top += event.offsetY - target.clientHeight;
-  root.dataset.config = JSON.stringify(config);
+  Object.keys(events).forEach(key => node.addEventListener(key, events[key]));
 };
 
-document.addEventListener('dragend', dragVertex);
+bind('.ConceptMap', conceptMap);
