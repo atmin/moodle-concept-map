@@ -414,9 +414,9 @@ fstream@^1.0.0, fstream@^1.0.2, fstream@~1.0.10:
     mkdirp ">=0.5 0"
     rimraf "2"
 
-funponent@0.3.0:
-  version "0.3.0"
-  resolved "https://registry.yarnpkg.com/funponent/-/funponent-0.3.0.tgz#58480eb3b92f00d821e1cb56eb2393e97854a655"
+funponent@0.3.1:
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/funponent/-/funponent-0.3.1.tgz#e1147bd753d50cde11ef57077db27309454b1657"
   dependencies:
     matches-selector-polyfill "^1.0.0"
     morphdom "^2.0.4"

@@ -709,11 +709,16 @@ var h = function (nodeName, attributes) {
     document.createElementNS(svgns, nodeName) :
     document.createElement(nodeName);
   var setAttribute = function (attr) {
-    var value = typeof attributes[attr] === 'object' ?
+    var val = attributes[attr];
+    var value = val && typeof val === 'object' ?
       Object.keys(attributes[attr])
         .map(function (key) { return ((kebabCase(key)) + ":" + (attributes[attr][key])); })
-        .join(';') : attributes[attr];
-    node.setAttribute(specialAttrs[attr] || attr, value);
+        .join(';') : val;
+    if (value === null) {
+      node.removeAttribute(specialAttrs[attr] || attr);
+    } else {
+      node.setAttribute(specialAttrs[attr] || attr, value);
+    }
   };
   Object.keys(attributes || {}).forEach(setAttribute);
   children.forEach(function (child) {
@@ -1168,9 +1173,11 @@ var DragDropTouch;
 var theme = {
   edgeBorder: '1px solid #666',
   edgeBorderDragging: '1px dashed #666',
+  edgeConnectorBackground: 'blue',
   edgeLabelBackground: 'rgba(255, 255, 255, 0.8)',
   vertexBackground: 'white',
   vertexBorder: '1px solid #999',
+  selectedVertexBorder: '1px solid blue',
   vertexBorderRadius: '5px',
 };
 
@@ -1189,16 +1196,18 @@ var lineTransform = function (x1, y1, x2, y2, units) {
 };
 
 var vertex = function (data) {
+  var editing = data.editing;
   var id = data.id;
   var label = data.label;
   var left = data.left;
+  var selected = data.selected;
   var top = data.top;
 
   return (
     h( 'div', {
       'data-id': id, draggable: 'true', className: 'Vertex', style: {
         background: theme.vertexBackground,
-        border: theme.vertexBorder,
+        border: selected ? theme.selectedVertexBorder : theme.vertexBorder,
         borderRadius: theme.vertexBorderRadius,
         position: 'absolute',
         left: (left + "px"),
@@ -1208,7 +1217,20 @@ var vertex = function (data) {
         zIndex: 1,
       } },
       h( 'span', {
-        style: 'cursor: text' }, label)
+        contenteditable: editing ? '' : null, style: {cursor: 'text'} },
+        label
+      ),
+      selected ? (
+        h( 'div', { style: {
+          background: theme.edgeConnectorBackground,
+          borderRadius: '50%',
+          position: 'relative',
+          left: '50%',
+          top: '100%',
+          width: '1em',
+          height: '1em',
+        } })
+      ) : null
     )
   );
 };
@@ -1280,7 +1302,8 @@ var conceptMap = function (data) {
           {from: verticesById[item.from],
           to: verticesById[item.to]})); }),
 
-        vertices.map(function (item) { return vertex(item); }),
+        vertices.map(function (item) { return vertex(Object.assign({}, item,
+          {selected: item.id == data.selectedVertexId})); }),
 
         helpPane
       )
@@ -1291,21 +1314,58 @@ var conceptMap = function (data) {
 conceptMap.init = function (node) {
   var getConfig = function () { return JSON.parse(node.dataset.config); };
   var setConfig = function (config) { return node.dataset.config = JSON.stringify(config); };;
+  var getVertexById = function (config, id) { return (
+    config.vertices
+      .filter(function (vertex) { return vertex.id == id; })
+      .shift()
+  ); };
 
   var events = {
+    focusout: function (event) {
+      if (event.target.parentNode.matches('.Vertex')) {
+        var config = getConfig();
+        var vertex = getVertexById(config, event.target.parentNode.dataset.id);
+        var label = event.target.innerText;
+        if (label) {
+          // finish editing, set new label
+          delete vertex.editing;
+          vertex.label = label;
+        } else {
+          // delete this vertex and participating edges
+          config.edges = config.edges.filter(
+            function (edge) { return edge.from != vertex.id && edge.to != vertex.id; }
+          );
+          config.vertices.splice(config.vertices.indexOf(vertex), 1);
+        }
+        setConfig(config);
+      }
+    },
+
     dblclick: function (event) {
       var config = getConfig();
-      config.vertices.push({
-        id: Math.random(),
-        label: 'Untitled',
-        left: event.offsetX,
-        top: event.offsetY,
-      });
-      setConfig(config);
+
+      if (event.target === node) {
+        config.vertices.push({
+          id: Math.random(),
+          label: 'Untitled',
+          left: event.offsetX,
+          top: event.offsetY,
+        });
+        setConfig(config);
+      }
+
+      if (event.target.parentNode.matches('.Vertex')) {
+        var vertex = getVertexById(config, event.target.parentNode.dataset.id);
+        vertex.editing = 1;
+        setConfig(config);
+        setTimeout(function () { return event.target.focus(); });
+      }
     },
 
     dragstart: function (event) {
-      // async so only drag origin element is affected and not dragged screenshot
+      var target = event.target;
+      node.dataset.selectedVertexId = target.dataset.id;
+      // async so only drag origin element style is affected and not dragged screenshot
       setTimeout(function () { return event.target.style.border = theme.edgeBorderDragging; });
     },
 
@@ -1317,6 +1377,11 @@ conceptMap.init = function (node) {
       vertex.left += event.offsetX;
       vertex.top += event.offsetY - target.clientHeight;
       setConfig(config);
+    },
+
+    click: function (event) {
+      var target = event.target;
+      node.dataset.selectedVertexId = target.matches('.Vertex') ? target.dataset.id : null;
     },
   };
 

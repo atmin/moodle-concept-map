@@ -4,9 +4,11 @@ import './drag-drop-touch';
 const theme = {
   edgeBorder: '1px solid #666',
   edgeBorderDragging: '1px dashed #666',
+  edgeConnectorBackground: 'blue',
   edgeLabelBackground: 'rgba(255, 255, 255, 0.8)',
   vertexBackground: 'white',
   vertexBorder: '1px solid #999',
+  selectedVertexBorder: '1px solid blue',
   vertexBorderRadius: '5px',
 };
 
@@ -26,9 +28,11 @@ const lineTransform = (x1, y1, x2, y2, units) => {
 
 const vertex = data => {
   const {
+    editing,
     id,
     label,
     left,
+    selected,
     top,
   } = data;
 
@@ -39,7 +43,7 @@ const vertex = data => {
       className={'Vertex'}
       style={{
         background: theme.vertexBackground,
-        border: theme.vertexBorder,
+        border: selected ? theme.selectedVertexBorder : theme.vertexBorder,
         borderRadius: theme.vertexBorderRadius,
         position: 'absolute',
         left: `${left}px`,
@@ -49,7 +53,21 @@ const vertex = data => {
         zIndex: 1,
       }}>
       <span
-        style={'cursor: text'}>{label}</span>
+        contenteditable={editing ? '' : null}
+        style={{cursor: 'text'}}>
+        {label}
+      </span>
+      {selected ? (
+        <div style={{
+          background: theme.edgeConnectorBackground,
+          borderRadius: '50%',
+          position: 'relative',
+          left: '50%',
+          top: '100%',
+          width: '1em',
+          height: '1em',
+        }} />
+      ) : null}
     </div>
   );
 };
@@ -129,7 +147,10 @@ const conceptMap = data => {
           to: verticesById[item.to],
         }))}
 
-        {vertices.map(item => vertex(item))}
+        {vertices.map(item => vertex({
+          ...item,
+          selected: item.id == data.selectedVertexId,
+        }))}
 
         {helpPane}
       </div>
@@ -140,21 +161,58 @@ const conceptMap = data => {
 conceptMap.init = node => {
   const getConfig = () => JSON.parse(node.dataset.config);
   const setConfig = config => node.dataset.config = JSON.stringify(config);;
+  const getVertexById = (config, id) => (
+    config.vertices
+      .filter(vertex => vertex.id == id)
+      .shift()
+  );
 
   const events = {
+    focusout: event => {
+      if (event.target.parentNode.matches('.Vertex')) {
+        const config = getConfig();
+        const vertex = getVertexById(config, event.target.parentNode.dataset.id);
+        const label = event.target.innerText;
+        if (label) {
+          // finish editing, set new label
+          delete vertex.editing;
+          vertex.label = label;
+        } else {
+          // delete this vertex and participating edges
+          config.edges = config.edges.filter(
+            edge => edge.from != vertex.id && edge.to != vertex.id
+          );
+          config.vertices.splice(config.vertices.indexOf(vertex), 1);
+        }
+        setConfig(config);
+      }
+    },
+
     dblclick: event => {
       const config = getConfig();
-      config.vertices.push({
-        id: Math.random(),
-        label: 'Untitled',
-        left: event.offsetX,
-        top: event.offsetY,
-      });
-      setConfig(config);
+
+      if (event.target === node) {
+        config.vertices.push({
+          id: Math.random(),
+          label: 'Untitled',
+          left: event.offsetX,
+          top: event.offsetY,
+        });
+        setConfig(config);
+      }
+
+      if (event.target.parentNode.matches('.Vertex')) {
+        const vertex = getVertexById(config, event.target.parentNode.dataset.id);
+        vertex.editing = 1;
+        setConfig(config);
+        setTimeout(() => event.target.focus());
+      }
     },
 
     dragstart: event => {
-      // async so only drag origin element is affected and not dragged screenshot
+      const target = event.target;
+      node.dataset.selectedVertexId = target.dataset.id;
+      // async so only drag origin element style is affected and not dragged screenshot
       setTimeout(() => event.target.style.border = theme.edgeBorderDragging);
     },
 
@@ -166,6 +224,11 @@ conceptMap.init = node => {
       vertex.left += event.offsetX;
       vertex.top += event.offsetY - target.clientHeight;
       setConfig(config);
+    },
+
+    click: event => {
+      const target = event.target;
+      node.dataset.selectedVertexId = target.matches('.Vertex') ? target.dataset.id : null;
     },
   };
 
