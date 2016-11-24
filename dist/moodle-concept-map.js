@@ -1196,18 +1196,28 @@ var lineTransform = function (x1, y1, x2, y2, units) {
 };
 
 var vertex = function (data) {
+  var dragged = data.dragged;
   var editing = data.editing;
   var id = data.id;
   var label = data.label;
   var left = data.left;
   var selected = data.selected;
   var top = data.top;
+  var vertexConnectorFrom = data.vertexConnectorFrom;
+
+  var border = theme.vertexBorder;
+  if (selected) {
+    border = theme.selectedVertexBorder;
+  }
+  if (dragged) {
+    border = theme.edgeBorderDragging;
+  }
 
   return (
     h( 'div', {
-      'data-id': id, draggable: 'true', className: 'Vertex', style: {
+      className: 'Vertex', 'data-id': id, draggable: 'true', style: {
         background: theme.vertexBackground,
-        border: selected ? theme.selectedVertexBorder : theme.vertexBorder,
+        border: border,
         borderRadius: theme.vertexBorderRadius,
         position: 'absolute',
         left: (left + "px"),
@@ -1221,23 +1231,28 @@ var vertex = function (data) {
         label
       ),
       selected ? (
-        h( 'div', { style: {
-          background: theme.edgeConnectorBackground,
-          borderRadius: '50%',
-          position: 'relative',
-          left: '50%',
-          top: '100%',
-          width: '1em',
-          height: '1em',
-        } })
+        h( 'div', {
+          className: 'VertexConnector', draggable: 'true', style: {
+            display: (vertexConnectorFrom == id || dragged) ? 'none' : '',
+            background: theme.edgeConnectorBackground,
+            borderRadius: '50%',
+            position: 'absolute',
+            left: 'calc(50% - 0.5em)',
+            top: 'calc(100% - 0.5em)',
+            width: '1em',
+            height: '1em',
+          } })
       ) : null
     )
   );
 };
 
 var edge = function (data) {
+  var editing = data.editing;
   var from = data.from;
+  var index = data.index;
   var label = data.label;
+  var selected = data.selected;
   var to = data.to;
 
   var units = 'px';
@@ -1247,10 +1262,25 @@ var edge = function (data) {
   var labelLeft = from.left + width / 2;
   var labelTop = from.top + height / 2;
 
+  var symbolStyle = {
+    backgroundColor: '#fff',
+    border: '1px solid #999',
+    borderRadius: '50%',
+    color: '#333',
+    cursor: 'pointer',
+    display: 'inline-block',
+    width: '1em',
+    lineHeight: '1em',
+    fontSize: '130%',
+    marginRight: '1px',
+    padding: '2px',
+    textAlign: 'center',
+  };
+
   return (
     h( 'div', null,
       h( 'div', {
-        className: 'Edge', style: Object.assign({}, {left: ("" + (from.left) + units),
+        className: ("Edge" + (selected ? ' --selected' : '')), 'data-index': index, style: Object.assign({}, {left: ("" + (from.left) + units),
           top: ("" + (from.top) + units),
           height: ("" + edgeThickness + units)},
           lineTransform(from.left, from.top, to.left, to.top, units)) }),
@@ -1262,7 +1292,30 @@ var edge = function (data) {
           top: ("" + labelTop + units),
           transform: 'translate(-50%, -50%)',
         } },
-        label
+        editing ? (
+          h( 'input', { value: label })
+        ) : (
+          h( 'span', {
+            className: 'EdgeLabel', 'data-index': index, style: {
+              marginRight: '0.5em'
+            } }, label)
+        ),
+
+        selected ? (
+          h( 'div', {
+            className: 'ActionButtonBar', style: {
+              position: 'absolute',
+              width: '10em',
+              left: '100%',
+              top: '-20%',
+            } },
+            h( 'a', {
+              className: 'EditEdgeLabelAction', 'data-index': index, style: Object.assign({}, symbolStyle), title: 'Edit edge label' }, "✎"),
+            h( 'a', {
+              className: 'DeleteEdgeAction', 'data-index': index, style: Object.assign({}, symbolStyle,
+                {color: 'red'}), title: 'Delete edge' }, "␡")
+          )
+        ) : null
       )
     )
   );
@@ -1279,9 +1332,7 @@ var helpPane = (
   } },
     h( 'li', null, "Double-tap map to add node" ),
     h( 'li', null, "Tap a node to select" ),
-    h( 'li', null, "Drag a node to move" ),
-    h( 'li', null, "Drag selected node connector circle to another node to create edge" ),
-    h( 'li', null, "Double-tap a node to edit, empty label to delete" )
+    h( 'li', null, "Drag a node to move" )
   )
 );
 
@@ -1298,12 +1349,17 @@ var conceptMap = function (data) {
   return (
     h( 'body', null,
       h( 'div', { style: {position: 'relative'} },
-        edges.map(function (item) { return edge(Object.assign({}, item,
-          {from: verticesById[item.from],
+        edges.map(function (item, index) { return edge(Object.assign({}, item,
+          {editing: index == data.editedEdgeIndex,
+          from: verticesById[item.from],
+          index: index,
+          selected: index == data.selectedEdgeIndex,
           to: verticesById[item.to]})); }),
 
         vertices.map(function (item) { return vertex(Object.assign({}, item,
-          {selected: item.id == data.selectedVertexId})); }),
+          {dragged: item.id == data.draggedVertexId,
+          vertexConnectorFrom: data.vertexConnectorFrom,
+          selected: item.id == data.selectedVertexId})); }),
 
         helpPane
       )
@@ -1311,7 +1367,17 @@ var conceptMap = function (data) {
   );
 };
 
+// All events are handled here
 conceptMap.init = function (node) {
+
+  // Utility functions
+  var handleDelegatedEvent = function (event, selectorHandlers) {
+    var target = event.target;
+    var handlerKey = Object.keys(selectorHandlers)
+      .filter(function (selector) { return target.matches(selector); })
+      .shift();
+    (selectorHandlers[handlerKey] || Function.prototype)(target);
+  };
   var getConfig = function () { return JSON.parse(node.dataset.config); };
   var setConfig = function (config) { return node.dataset.config = JSON.stringify(config); };;
   var getVertexById = function (config, id) { return (
@@ -1319,31 +1385,40 @@ conceptMap.init = function (node) {
       .filter(function (vertex) { return vertex.id == id; })
       .shift()
   ); };
+  var edgeExists = function (config, v1, v2) { return (
+    config.edges
+      .filter(function (edge) { return (edge.from, edge.to) == (v1, v2) ||
+        (edge.from, edge.to) == (v2, v1); }
+      )
+      .length > 0
+  ); };
 
+  // Event map
   var events = {
-    focusout: function (event) {
-      if (event.target.parentNode.matches('.Vertex')) {
-        var config = getConfig();
-        var vertex = getVertexById(config, event.target.parentNode.dataset.id);
-        var label = event.target.innerText;
-        if (label) {
-          // finish editing, set new label
-          delete vertex.editing;
-          vertex.label = label;
-        } else {
-          // delete this vertex and participating edges
-          config.edges = config.edges.filter(
-            function (edge) { return edge.from != vertex.id && edge.to != vertex.id; }
-          );
-          config.vertices.splice(config.vertices.indexOf(vertex), 1);
-        }
-        setConfig(config);
-      }
-    },
+    // focusout: event => {
+      // handleDelegatedEvent(event, {
+        // '.Vertex': target => {
+          // const config = getConfig();
+          // const vertex = getVertexById(config, target.parentNode.dataset.id);
+          // const label = target.innerText;
+          // if (label) {
+            // // finish editing, set new label
+            // delete vertex.editing;
+            // vertex.label = label;
+          // } else {
+            // // delete this vertex and participating edges
+            // config.edges = config.edges.filter(
+              // edge => edge.from != vertex.id && edge.to != vertex.id
+            // );
+            // config.vertices.splice(config.vertices.indexOf(vertex), 1);
+          // }
+          // setConfig(config);
+        // },
+      // });
+    // },
 
     dblclick: function (event) {
       var config = getConfig();
-
       if (event.target === node) {
         config.vertices.push({
           id: Math.random(),
@@ -1353,35 +1428,68 @@ conceptMap.init = function (node) {
         });
         setConfig(config);
       }
-
-      if (event.target.parentNode.matches('.Vertex')) {
-        var vertex = getVertexById(config, event.target.parentNode.dataset.id);
-        vertex.editing = 1;
-        setConfig(config);
-        setTimeout(function () { return event.target.focus(); });
-      }
     },
 
     dragstart: function (event) {
-      var target = event.target;
-      node.dataset.selectedVertexId = target.dataset.id;
-      // async so only drag origin element style is affected and not dragged screenshot
-      setTimeout(function () { return event.target.style.border = theme.edgeBorderDragging; });
+      handleDelegatedEvent(event, {
+        '.VertexConnector': function (target) {
+          setTimeout(function () {
+            node.dataset.vertexConnectorFrom = target.parentNode.dataset.id;
+          });
+        },
+        '.Vertex': function (target) {
+          node.dataset.selectedVertexId = target.dataset.id;
+          delete node.dataset.selectedEdgeIndex;
+          setTimeout(function () {
+            node.dataset.draggedVertexId = target.dataset.id;
+          });
+        },
+      });
     },
 
     dragend: function (event) {
+      handleDelegatedEvent(event, {
+        '.VertexConnector': function (target) {
+          delete node.dataset.vertexConnectorFrom;
+        },
+        '.Vertex': function (target) {
+          var id = target.dataset.id;
+          var config = getConfig();
+          var vertex = config.vertices.filter(function (vertex) { return vertex.id == id; })[0];
+          vertex.left += event.offsetX;
+          vertex.top += event.offsetY - target.clientHeight;
+          setConfig(config);
+          delete node.dataset.draggedVertexId;
+        },
+      });
+    },
+
+    dragover: function (event) {
       var target = event.target;
-      var id = target.dataset.id;
-      var config = getConfig();
-      var vertex = config.vertices.filter(function (vertex) { return vertex.id == id; })[0];
-      vertex.left += event.offsetX;
-      vertex.top += event.offsetY - target.clientHeight;
-      setConfig(config);
+      node.dataset.dropVertexId = target.matches('.Vertex') ? target.dataset.id : null;
     },
 
     click: function (event) {
-      var target = event.target;
-      node.dataset.selectedVertexId = target.matches('.Vertex') ? target.dataset.id : null;
+      var state = node.dataset;
+      state.selectedVertexId = null;
+      state.selectedEdgeIndex = null;
+
+      handleDelegatedEvent(event, {
+        '.Vertex': function (target) {
+          state.selectedVertexId = target.dataset.id;
+        },
+        '.Edge, .EdgeLabel': function (target) {
+          state.selectedEdgeIndex = target.dataset.index;
+        },
+        '.EditEdgeLabelAction': function (target) {
+          state.editedEdgeIndex = target.dataset.index;
+        },
+        '.DeleteEdgeAction': function (target) {
+          var config = getConfig();
+          config.edges.splice(target.dataset.index, 1);
+          setConfig(config);
+        },
+      });
     },
   };
 
