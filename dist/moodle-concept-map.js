@@ -1243,6 +1243,14 @@ var vertex = function (data) {
     border = theme.edgeBorderDragging;
   }
 
+  var opacity = 0;
+  if (label || selected || editing || dropVertexId == id) {
+    opacity = 1;
+  }
+  if (!label && vertexConnectorFrom) {
+    opacity = 0.2;
+  }
+
   return (
     h( 'div', null,
       editing ? modalOverlay : null,
@@ -1259,7 +1267,7 @@ var vertex = function (data) {
           top: (top + "px"),
           padding: editing ? '0.25em' : '0.5em 1em',
           transform: 'translate(-50%, -50%)',
-          opacity: label || selected || editing ? 1 : 0,
+          opacity: opacity,
           zIndex: editing ? 101 : 1,
         } },
 
@@ -1629,7 +1637,7 @@ conceptMap.init = function (node) {
         },
         '.EditVertexLabelAction': function (target) {
           state.editedVertexId = target.dataset.id;
-          setTimeout(function () { return document.querySelector('.EditVertexLabelInput').focus(); });
+          setTimeout(function () { return document.querySelector('.EditVertexLabelInput').select(); });
         },
         '.EditVertexLabelOk': handleEditVertexLabelOk,
         '.EditVertexLabelCancel': handleEditVertexLabelCancel,
@@ -1647,7 +1655,7 @@ conceptMap.init = function (node) {
         },
         '.EditEdgeLabelAction': function (target) {
           state.editedEdgeIndex = target.dataset.index;
-          setTimeout(function () { return document.querySelector('.EditEdgeLabelInput').focus(); });
+          setTimeout(function () { return document.querySelector('.EditEdgeLabelInput').select(); });
         },
         '.EditEdgeLabelOk': handleEditEdgeLabelOk,
         '.EditEdgeLabelCancel': handleEditEdgeLabelCancel,
@@ -1660,7 +1668,6 @@ conceptMap.init = function (node) {
     },
 
     keydown: function (event) {
-      // Enter
       if (event.keyCode === ENTER) {
         handleDelegatedEvent(event, {
           '.EditVertexLabelInput': handleEditVertexLabelOk,
@@ -1668,7 +1675,6 @@ conceptMap.init = function (node) {
         });
       }
 
-      // Esc
       if (event.keyCode === ESC) {
         handleDelegatedEvent(event, {
           '.EditVertexLabelInput': handleEditVertexLabelCancel,
@@ -1684,23 +1690,21 @@ conceptMap.init = function (node) {
     var config = getConfig();
     var vertex = getVertexById(config, node.dataset.selectedVertexId);
     if (vertex) {
-      switch (event.keyCode) {
-        case UP:
-          vertex.top -= 2;
-          event.preventDefault();
-          break;
-        case DOWN:
-          vertex.top += 2;
-          event.preventDefault();
-          break;
-        case LEFT:
-          vertex.left -= 2;
-          event.preventDefault();
-          break;
-        case RIGHT:
-          vertex.left += 2;
-          event.preventDefault();
-          break;
+      if (event.keyCode === UP) {
+        vertex.top -= 2;
+        event.preventDefault();
+      }
+      if (event.keyCode === DOWN) {
+        vertex.top += 2;
+        event.preventDefault();
+      }
+      if (event.keyCode === LEFT) {
+        vertex.left -= 2;
+        event.preventDefault();
+      }
+      if (event.keyCode === RIGHT) {
+        vertex.left += 2;
+        event.preventDefault();
       }
       setConfig(config);
     }
