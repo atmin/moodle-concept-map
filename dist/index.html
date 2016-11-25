@@ -10,6 +10,8 @@
     .ConceptMap {
       width: 100%;
       height: 100vh;
+      overflow: auto;
+      padding: 2em;
     }
     .Vertex:hover {
       cursor: move;
@@ -41,36 +43,8 @@
   <div
     class="ConceptMap"
     data-config='{
-      "vertices": [{
-        "id": 1,
-        "label": "Test 1",
-        "left": 100,
-        "top": 100
-      }, {
-        "id": 2,
-        "label": "Test 2",
-        "left": 550,
-        "top": 300
-      }, {
-        "id": 3,
-        "label": "Something else",
-        "left": 120,
-        "top": 400
-      }],
-
-      "edges": [{
-        "from": 1,
-        "to": 2,
-        "label": "relates to"
-      }, {
-        "from": 1,
-        "to": 3,
-        "label": "another relation"
-      }, {
-        "from": 2,
-        "to": 3,
-        "label": "2 links 3"
-      }]
+      "vertices": [],
+      "edges": []
     }'>
     JavaScript needed to render this component
   </div>

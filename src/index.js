@@ -32,7 +32,7 @@ const modalOverlay = (
     className={'ModalOverlay'}
     style={{
       backgroundColor: '#fff',
-      opacity: 0.8,
+      opacity: 0.9,
       position: 'fixed',
       left: 0,
       top: 0,
@@ -96,6 +96,7 @@ const vertex = data => {
           top: `${top}px`,
           padding: editing ? '0.25em' : '0.5em 1em',
           transform: 'translate(-50%, -50%)',
+          opacity: label || selected || editing ? 1 : 0,
           zIndex: editing ? 101 : 1,
         }}>
 
@@ -339,6 +340,11 @@ const conceptMap = data => {
     return result;
   }, {});
 
+  const hideAddNewVertex = data.selectedVertexId ||
+    data.selectedEdgeIndex ||
+    data.editedVertexId ||
+    data.editedEdgeIndex;
+
   return (
     <body>
       <div style={{position: 'relative'}}>
@@ -361,7 +367,7 @@ const conceptMap = data => {
         }))}
 
         {addNewVertex({
-          display: data.selectedVertexId || data.selectedEdgeIndex ?
+          display: hideAddNewVertex ?
             'none' : 'block'
         })}
       </div>
@@ -371,6 +377,13 @@ const conceptMap = data => {
 
 // All events are handled here
 conceptMap.init = node => {
+
+  const ENTER = 13;
+  const ESC = 27;
+  const UP = 38;
+  const DOWN = 40;
+  const LEFT = 37;
+  const RIGHT = 39;
 
   // Utility functions
   const handleDelegatedEvent = (event, selectorHandlers) => {
@@ -482,7 +495,7 @@ conceptMap.init = node => {
           const config = getConfig();
           const vertex = config.vertices.filter(vertex => vertex.id == id)[0];
           vertex.left = event.clientX;
-          vertex.top = event.clientY - target.clientHeight;
+          vertex.top = event.clientY;
           setConfig(config);
           delete node.dataset.draggedVertexId;
         },
@@ -496,7 +509,8 @@ conceptMap.init = node => {
       event.preventDefault();
       handleDelegatedEvent(event, {
         '.Vertex': target => {
-          if (!edgeExists(config, state.selectedVertexId, target.dataset.id)) {
+          if (state.selectedVertexId != target.dataset.id &&
+            !edgeExists(config, state.selectedVertexId, target.dataset.id)) {
             state.dropVertexId = target.dataset.id;
           }
         },
@@ -555,7 +569,7 @@ conceptMap.init = node => {
 
     keydown: event => {
       // Enter
-      if (event.keyCode === 13) {
+      if (event.keyCode === ENTER) {
         handleDelegatedEvent(event, {
           '.EditVertexLabelInput': handleEditVertexLabelOk,
           '.EditEdgeLabelInput': handleEditEdgeLabelOk,
@@ -563,7 +577,7 @@ conceptMap.init = node => {
       }
 
       // Esc
-      if (event.keyCode === 27) {
+      if (event.keyCode === ESC) {
         handleDelegatedEvent(event, {
           '.EditVertexLabelInput': handleEditVertexLabelCancel,
           '.EditEdgeLabelInput': handleEditEdgeLabelCancel,
@@ -573,6 +587,32 @@ conceptMap.init = node => {
   };
 
   Object.keys(events).forEach(key => node.addEventListener(key, events[key]));
+
+  document.addEventListener('keydown', event => {
+    const config = getConfig();
+    const vertex = getVertexById(config, node.dataset.selectedVertexId);
+    if (vertex) {
+      switch (event.keyCode) {
+        case UP:
+          vertex.top -= 2;
+          event.preventDefault();
+          break;
+        case DOWN:
+          vertex.top += 2;
+          event.preventDefault();
+          break;
+        case LEFT:
+          vertex.left -= 2;
+          event.preventDefault();
+          break;
+        case RIGHT:
+          vertex.left += 2;
+          event.preventDefault();
+          break;
+      }
+      setConfig(config);
+    }
+  });
 };
 
 bind('.ConceptMap', conceptMap);

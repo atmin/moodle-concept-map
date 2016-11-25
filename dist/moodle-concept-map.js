@@ -1200,7 +1200,7 @@ var modalOverlay = (
   h( 'div', {
     className: 'ModalOverlay', style: {
       backgroundColor: '#fff',
-      opacity: 0.8,
+      opacity: 0.9,
       position: 'fixed',
       left: 0,
       top: 0,
@@ -1259,6 +1259,7 @@ var vertex = function (data) {
           top: (top + "px"),
           padding: editing ? '0.25em' : '0.5em 1em',
           transform: 'translate(-50%, -50%)',
+          opacity: label || selected || editing ? 1 : 0,
           zIndex: editing ? 101 : 1,
         } },
 
@@ -1436,6 +1437,11 @@ var conceptMap = function (data) {
     return result;
   }, {});
 
+  var hideAddNewVertex = data.selectedVertexId ||
+    data.selectedEdgeIndex ||
+    data.editedVertexId ||
+    data.editedEdgeIndex;
+
   return (
     h( 'body', null,
       h( 'div', { style: {position: 'relative'} },
@@ -1454,7 +1460,7 @@ var conceptMap = function (data) {
           selected: item.id == data.selectedVertexId})); }),
 
         addNewVertex({
-          display: data.selectedVertexId || data.selectedEdgeIndex ?
+          display: hideAddNewVertex ?
             'none' : 'block'
         })
       )
@@ -1464,6 +1470,13 @@ var conceptMap = function (data) {
 
 // All events are handled here
 conceptMap.init = function (node) {
+
+  var ENTER = 13;
+  var ESC = 27;
+  var UP = 38;
+  var DOWN = 40;
+  var LEFT = 37;
+  var RIGHT = 39;
 
   // Utility functions
   var handleDelegatedEvent = function (event, selectorHandlers) {
@@ -1574,7 +1587,7 @@ conceptMap.init = function (node) {
           var config = getConfig();
           var vertex = config.vertices.filter(function (vertex) { return vertex.id == id; })[0];
           vertex.left = event.clientX;
-          vertex.top = event.clientY - target.clientHeight;
+          vertex.top = event.clientY;
           setConfig(config);
           delete node.dataset.draggedVertexId;
         },
@@ -1588,7 +1601,8 @@ conceptMap.init = function (node) {
       event.preventDefault();
       handleDelegatedEvent(event, {
         '.Vertex': function (target) {
-          if (!edgeExists(config, state.selectedVertexId, target.dataset.id)) {
+          if (state.selectedVertexId != target.dataset.id &&
+            !edgeExists(config, state.selectedVertexId, target.dataset.id)) {
             state.dropVertexId = target.dataset.id;
           }
         },
@@ -1647,7 +1661,7 @@ conceptMap.init = function (node) {
 
     keydown: function (event) {
       // Enter
-      if (event.keyCode === 13) {
+      if (event.keyCode === ENTER) {
         handleDelegatedEvent(event, {
           '.EditVertexLabelInput': handleEditVertexLabelOk,
           '.EditEdgeLabelInput': handleEditEdgeLabelOk,
@@ -1655,7 +1669,7 @@ conceptMap.init = function (node) {
       }
 
       // Esc
-      if (event.keyCode === 27) {
+      if (event.keyCode === ESC) {
         handleDelegatedEvent(event, {
           '.EditVertexLabelInput': handleEditVertexLabelCancel,
           '.EditEdgeLabelInput': handleEditEdgeLabelCancel,
@@ -1665,6 +1679,32 @@ conceptMap.init = function (node) {
   };
 
   Object.keys(events).forEach(function (key) { return node.addEventListener(key, events[key]); });
+
+  document.addEventListener('keydown', function (event) {
+    var config = getConfig();
+    var vertex = getVertexById(config, node.dataset.selectedVertexId);
+    if (vertex) {
+      switch (event.keyCode) {
+        case UP:
+          vertex.top -= 2;
+          event.preventDefault();
+          break;
+        case DOWN:
+          vertex.top += 2;
+          event.preventDefault();
+          break;
+        case LEFT:
+          vertex.left -= 2;
+          event.preventDefault();
+          break;
+        case RIGHT:
+          vertex.left += 2;
+          event.preventDefault();
+          break;
+      }
+      setConfig(config);
+    }
+  });
 };
 
 bind('.ConceptMap', conceptMap);
