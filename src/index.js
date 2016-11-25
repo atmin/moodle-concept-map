@@ -86,9 +86,10 @@ const vertex = data => {
         data-id={id}
         draggable={'true'}
         style={{
-          background: theme.vertexBackground,
+          background: dropVertexId == id ? '#EEEEFF' : theme.vertexBackground,
           border,
           borderRadius: theme.vertexBorderRadius,
+          minHeight: '1em',
           position: 'absolute',
           left: `${left}px`,
           top: `${top}px`,
@@ -100,8 +101,8 @@ const vertex = data => {
         {editing ? (
           <div>
             <input
-              autofocus
               className={'EditVertexLabelInput'}
+              data-id={id}
               style={{
                 border: '1px solid #999',
                 borderRadius: '1em',
@@ -134,16 +135,18 @@ const vertex = data => {
             className={'VertexConnector'}
             draggable={'true'}
             style={{
+              color: 'white',
               display: (vertexConnectorFrom == id || dragged) ? 'none' : 'block',
               background: theme.edgeConnectorBackground,
               borderRadius: '50%',
               position: 'absolute',
-              left: 'calc(50% - 0.5em)',
+              left: 'calc(50% - 0.75em)',
               top: 'calc(100% - 0.5em)',
-              width: '1em',
-              height: '1em',
+              width: '1.5em',
+              height: '1.5em',
+              textAlign: 'center',
             }}
-            title={'Drag connector to another vertex to create edge'} />
+            title={'Drag connector to another vertex to create edge'}>☍</a>
         ) : null}
         {selected ? (
           <div
@@ -219,14 +222,14 @@ const edge = data => {
         {editing ? (
           <div>
             <input
-              autofocus
               className={'EditEdgeLabelInput'}
+              data-index={index}
               style={{
                 border: '1px solid #999',
                 borderRadius: '1em',
                 fontSize: '100%',
                 padding: '0.25em 1em',
-                width: '8em',
+                width: '5em',
               }}
               value={label} />
             <a
@@ -367,6 +370,36 @@ conceptMap.init = node => {
       .length > 0
   );
 
+  // Event handlers
+  const handleEditVertexLabelOk = target => {
+    const config = getConfig();
+    const state = node.dataset;
+    getVertexById(config, target.dataset.id).label =
+      document.querySelector('.EditVertexLabelInput').value;
+    setConfig(config);
+    delete state.editedVertexId;
+  };
+
+  const handleEditVertexLabelCancel = target => {
+    const state = node.dataset;
+    delete state.editedVertexId;
+    state.selectedVertexId = target.dataset.id;
+  };
+
+  const handleEditEdgeLabelOk = target => {
+    const state = node.dataset;
+    const config = getConfig();
+    config.edges[target.dataset.index].label =
+      document.querySelector('.EditEdgeLabelInput').value;
+    setConfig(config);
+    delete state.editedEdgeIndex;
+  };
+
+  const handleEditEdgeLabelCancel = target => {
+    const state = node.dataset;
+    delete state.editedEdgeIndex;
+  };
+
   // Event map
   const events = {
     dblclick: event => {
@@ -377,11 +410,12 @@ conceptMap.init = node => {
         config.vertices.push({
           id,
           label: '',
-          left: event.offsetX,
-          top: event.offsetY,
+          left: event.clientX,
+          top: event.clientY,
         });
         setConfig(config);
         state.editedVertexId = id;
+        setTimeout(() => document.querySelector('.EditVertexLabelInput').focus());
       }
     },
 
@@ -422,8 +456,8 @@ conceptMap.init = node => {
           const id = target.dataset.id;
           const config = getConfig();
           const vertex = config.vertices.filter(vertex => vertex.id == id)[0];
-          vertex.left += event.offsetX;
-          vertex.top += event.offsetY - target.clientHeight;
+          vertex.left = event.clientX;
+          vertex.top = event.clientY - target.clientHeight;
           setConfig(config);
           delete node.dataset.draggedVertexId;
         },
@@ -464,17 +498,17 @@ conceptMap.init = node => {
         },
         '.EditVertexLabelAction': target => {
           state.editedVertexId = target.dataset.id;
+          setTimeout(() => document.querySelector('.EditVertexLabelInput').focus());
         },
-        '.EditVertexLabelOk': target => {
+        '.EditVertexLabelOk': handleEditVertexLabelOk,
+        '.EditVertexLabelCancel': handleEditVertexLabelCancel,
+        '.DeleteVertexAction': target => {
           const config = getConfig();
-          getVertexById(config, target.dataset.id).label =
-            document.querySelector('.EditVertexLabelInput').value;
+          const id = target.dataset.id;
+          const vertex = getVertexById(config, id);
+          config.edges = config.edges.filter(edge => edge.from != id && edge.to != id);
+          config.vertices.splice(config.vertices.indexOf(vertex), 1);
           setConfig(config);
-          delete state.editedVertexId;
-        },
-        '.EditVertexLabelCancel': target => {
-          delete state.editedVertexId;
-          state.selectedVertexId = target.dataset.id;
         },
 
         '.Edge, .EdgeLabel': target => {
@@ -482,23 +516,34 @@ conceptMap.init = node => {
         },
         '.EditEdgeLabelAction': target => {
           state.editedEdgeIndex = target.dataset.index;
+          setTimeout(() => document.querySelector('.EditEdgeLabelInput').focus());
         },
-        '.EditEdgeLabelOk': target => {
-          const config = getConfig();
-          config.edges[target.dataset.index].label =
-            document.querySelector('.EditEdgeLabelInput').value;
-          setConfig(config);
-          delete state.editedEdgeIndex;
-        },
-        '.EditEdgeLabelCancel': target => {
-          delete state.editedEdgeIndex;
-        },
+        '.EditEdgeLabelOk': handleEditEdgeLabelOk,
+        '.EditEdgeLabelCancel': handleEditEdgeLabelCancel,
         '.DeleteEdgeAction': target => {
           const config = getConfig();
           config.edges.splice(target.dataset.index, 1);
           setConfig(config);
         },
       });
+    },
+
+    keydown: event => {
+      // Enter
+      if (event.keyCode === 13) {
+        handleDelegatedEvent(event, {
+          '.EditVertexLabelInput': handleEditVertexLabelOk,
+          '.EditEdgeLabelInput': handleEditEdgeLabelOk,
+        });
+      }
+
+      // Esc
+      if (event.keyCode === 27) {
+        handleDelegatedEvent(event, {
+          '.EditVertexLabelInput': handleEditVertexLabelCancel,
+          '.EditEdgeLabelInput': handleEditEdgeLabelCancel,
+        });
+      }
     },
   };
 

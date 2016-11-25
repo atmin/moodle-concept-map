@@ -1249,9 +1249,10 @@ var vertex = function (data) {
 
       h( 'div', {
         className: 'Vertex', 'data-id': id, draggable: 'true', style: {
-          background: theme.vertexBackground,
+          background: dropVertexId == id ? '#EEEEFF' : theme.vertexBackground,
           border: border,
           borderRadius: theme.vertexBorderRadius,
+          minHeight: '1em',
           position: 'absolute',
           left: (left + "px"),
           top: (top + "px"),
@@ -1263,7 +1264,7 @@ var vertex = function (data) {
         editing ? (
           h( 'div', null,
             h( 'input', {
-              autofocus: true, className: 'EditVertexLabelInput', style: {
+              className: 'EditVertexLabelInput', 'data-id': id, style: {
                 border: '1px solid #999',
                 borderRadius: '1em',
                 fontSize: '100%',
@@ -1282,15 +1283,17 @@ var vertex = function (data) {
         selected ? (
           h( 'a', {
             className: 'VertexConnector', draggable: 'true', style: {
+              color: 'white',
               display: (vertexConnectorFrom == id || dragged) ? 'none' : 'block',
               background: theme.edgeConnectorBackground,
               borderRadius: '50%',
               position: 'absolute',
-              left: 'calc(50% - 0.5em)',
+              left: 'calc(50% - 0.75em)',
               top: 'calc(100% - 0.5em)',
-              width: '1em',
-              height: '1em',
-            }, title: 'Drag connector to another vertex to create edge' })
+              width: '1.5em',
+              height: '1.5em',
+              textAlign: 'center',
+            }, title: 'Drag connector to another vertex to create edge' }, "☍")
         ) : null,
         selected ? (
           h( 'div', {
@@ -1349,12 +1352,12 @@ var edge = function (data) {
         editing ? (
           h( 'div', null,
             h( 'input', {
-              autofocus: true, className: 'EditEdgeLabelInput', style: {
+              className: 'EditEdgeLabelInput', 'data-index': index, style: {
                 border: '1px solid #999',
                 borderRadius: '1em',
                 fontSize: '100%',
                 padding: '0.25em 1em',
-                width: '8em',
+                width: '5em',
               }, value: label }),
             h( 'a', {
               className: 'EditEdgeLabelOk', 'data-index': index, style: Object.assign({}, symbolStyle,
@@ -1465,6 +1468,36 @@ conceptMap.init = function (node) {
       .length > 0
   ); };
 
+  // Event handlers
+  var handleEditVertexLabelOk = function (target) {
+    var config = getConfig();
+    var state = node.dataset;
+    getVertexById(config, target.dataset.id).label =
+      document.querySelector('.EditVertexLabelInput').value;
+    setConfig(config);
+    delete state.editedVertexId;
+  };
+
+  var handleEditVertexLabelCancel = function (target) {
+    var state = node.dataset;
+    delete state.editedVertexId;
+    state.selectedVertexId = target.dataset.id;
+  };
+
+  var handleEditEdgeLabelOk = function (target) {
+    var state = node.dataset;
+    var config = getConfig();
+    config.edges[target.dataset.index].label =
+      document.querySelector('.EditEdgeLabelInput').value;
+    setConfig(config);
+    delete state.editedEdgeIndex;
+  };
+
+  var handleEditEdgeLabelCancel = function (target) {
+    var state = node.dataset;
+    delete state.editedEdgeIndex;
+  };
+
   // Event map
   var events = {
     dblclick: function (event) {
@@ -1475,11 +1508,12 @@ conceptMap.init = function (node) {
         config.vertices.push({
           id: id,
           label: '',
-          left: event.offsetX,
-          top: event.offsetY,
+          left: event.clientX,
+          top: event.clientY,
         });
         setConfig(config);
         state.editedVertexId = id;
+        setTimeout(function () { return document.querySelector('.EditVertexLabelInput').focus(); });
       }
     },
 
@@ -1520,8 +1554,8 @@ conceptMap.init = function (node) {
           var id = target.dataset.id;
           var config = getConfig();
           var vertex = config.vertices.filter(function (vertex) { return vertex.id == id; })[0];
-          vertex.left += event.offsetX;
-          vertex.top += event.offsetY - target.clientHeight;
+          vertex.left = event.clientX;
+          vertex.top = event.clientY - target.clientHeight;
           setConfig(config);
           delete node.dataset.draggedVertexId;
         },
@@ -1562,17 +1596,17 @@ conceptMap.init = function (node) {
         },
         '.EditVertexLabelAction': function (target) {
           state.editedVertexId = target.dataset.id;
+          setTimeout(function () { return document.querySelector('.EditVertexLabelInput').focus(); });
         },
-        '.EditVertexLabelOk': function (target) {
+        '.EditVertexLabelOk': handleEditVertexLabelOk,
+        '.EditVertexLabelCancel': handleEditVertexLabelCancel,
+        '.DeleteVertexAction': function (target) {
           var config = getConfig();
-          getVertexById(config, target.dataset.id).label =
-            document.querySelector('.EditVertexLabelInput').value;
+          var id = target.dataset.id;
+          var vertex = getVertexById(config, id);
+          config.edges = config.edges.filter(function (edge) { return edge.from != id && edge.to != id; });
+          config.vertices.splice(config.vertices.indexOf(vertex), 1);
           setConfig(config);
-          delete state.editedVertexId;
-        },
-        '.EditVertexLabelCancel': function (target) {
-          delete state.editedVertexId;
-          state.selectedVertexId = target.dataset.id;
         },
 
         '.Edge, .EdgeLabel': function (target) {
@@ -1580,23 +1614,34 @@ conceptMap.init = function (node) {
         },
         '.EditEdgeLabelAction': function (target) {
           state.editedEdgeIndex = target.dataset.index;
+          setTimeout(function () { return document.querySelector('.EditEdgeLabelInput').focus(); });
         },
-        '.EditEdgeLabelOk': function (target) {
-          var config = getConfig();
-          config.edges[target.dataset.index].label =
-            document.querySelector('.EditEdgeLabelInput').value;
-          setConfig(config);
-          delete state.editedEdgeIndex;
-        },
-        '.EditEdgeLabelCancel': function (target) {
-          delete state.editedEdgeIndex;
-        },
+        '.EditEdgeLabelOk': handleEditEdgeLabelOk,
+        '.EditEdgeLabelCancel': handleEditEdgeLabelCancel,
         '.DeleteEdgeAction': function (target) {
           var config = getConfig();
           config.edges.splice(target.dataset.index, 1);
           setConfig(config);
         },
       });
+    },
+
+    keydown: function (event) {
+      // Enter
+      if (event.keyCode === 13) {
+        handleDelegatedEvent(event, {
+          '.EditVertexLabelInput': handleEditVertexLabelOk,
+          '.EditEdgeLabelInput': handleEditEdgeLabelOk,
+        });
+      }
+
+      // Esc
+      if (event.keyCode === 27) {
+        handleDelegatedEvent(event, {
+          '.EditVertexLabelInput': handleEditVertexLabelCancel,
+          '.EditEdgeLabelInput': handleEditEdgeLabelCancel,
+        });
+      }
     },
   };
 
