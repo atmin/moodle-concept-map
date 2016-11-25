@@ -1181,6 +1181,35 @@ var theme = {
   vertexBorderRadius: '5px',
 };
 
+var symbolStyle = {
+  backgroundColor: '#fff',
+  border: '1px solid #999',
+  borderRadius: '50%',
+  color: '#333',
+  cursor: 'pointer',
+  display: 'inline-block',
+  width: '1em',
+  lineHeight: '1em',
+  fontSize: '130%',
+  marginLeft: '0.25em',
+  padding: '2px',
+  textAlign: 'center',
+};
+
+var modalOverlay = (
+  h( 'div', {
+    className: 'ModalOverlay', style: {
+      backgroundColor: '#fff',
+      opacity: 0.8,
+      position: 'fixed',
+      left: 0,
+      top: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 100,
+    } })
+);
+
 var lineTransform = function (x1, y1, x2, y2, units) {
   var deltaX = x2 - x1;
   var deltaY = y2 - y1;
@@ -1197,6 +1226,7 @@ var lineTransform = function (x1, y1, x2, y2, units) {
 
 var vertex = function (data) {
   var dragged = data.dragged;
+  var dropVertexId = data.dropVertexId;
   var editing = data.editing;
   var id = data.id;
   var label = data.label;
@@ -1206,7 +1236,7 @@ var vertex = function (data) {
   var vertexConnectorFrom = data.vertexConnectorFrom;
 
   var border = theme.vertexBorder;
-  if (selected) {
+  if (selected || dropVertexId == id) {
     border = theme.selectedVertexBorder;
   }
   if (dragged) {
@@ -1214,35 +1244,72 @@ var vertex = function (data) {
   }
 
   return (
-    h( 'div', {
-      className: 'Vertex', 'data-id': id, draggable: 'true', style: {
-        background: theme.vertexBackground,
-        border: border,
-        borderRadius: theme.vertexBorderRadius,
-        position: 'absolute',
-        left: (left + "px"),
-        top: (top + "px"),
-        padding: '0.5em 1em',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 1,
-      } },
-      h( 'span', {
-        contenteditable: editing ? '' : null, style: {cursor: 'text'} },
-        label
-      ),
-      selected ? (
-        h( 'div', {
-          className: 'VertexConnector', draggable: 'true', style: {
-            display: (vertexConnectorFrom == id || dragged) ? 'none' : '',
-            background: theme.edgeConnectorBackground,
-            borderRadius: '50%',
-            position: 'absolute',
-            left: 'calc(50% - 0.5em)',
-            top: 'calc(100% - 0.5em)',
-            width: '1em',
-            height: '1em',
-          } })
-      ) : null
+    h( 'div', null,
+      editing ? modalOverlay : null,
+
+      h( 'div', {
+        className: 'Vertex', 'data-id': id, draggable: 'true', style: {
+          background: theme.vertexBackground,
+          border: border,
+          borderRadius: theme.vertexBorderRadius,
+          position: 'absolute',
+          left: (left + "px"),
+          top: (top + "px"),
+          padding: '0.5em 1em',
+          transform: 'translate(-50%, -50%)',
+          zIndex: editing ? 101 : 1,
+        } },
+
+        editing ? (
+          h( 'div', null,
+            h( 'input', {
+              autofocus: true, className: 'EditVertexLabelInput', style: {
+                border: '1px solid #999',
+                borderRadius: '1em',
+                fontSize: '100%',
+                padding: '0.25em 1em',
+                width: '5em',
+              }, value: label }),
+            h( 'a', {
+              className: 'EditVertexLabelOk', 'data-id': id, style: Object.assign({}, symbolStyle,
+                {color: 'green'}), title: 'OK' }, "✓"),
+            h( 'a', {
+              className: 'EditVertexLabelCancel', 'data-id': id, style: Object.assign({}, symbolStyle,
+                {color: 'red'}), title: 'Cancel' }, "×")
+          )
+        ) : label,
+
+        selected ? (
+          h( 'a', {
+            className: 'VertexConnector', draggable: 'true', style: {
+              display: (vertexConnectorFrom == id || dragged) ? 'none' : 'block',
+              background: theme.edgeConnectorBackground,
+              borderRadius: '50%',
+              position: 'absolute',
+              left: 'calc(50% - 0.5em)',
+              top: 'calc(100% - 0.5em)',
+              width: '1em',
+              height: '1em',
+            }, title: 'Drag connector to another vertex to create edge' })
+        ) : null,
+        selected ? (
+          h( 'div', {
+            className: 'ActionButtonBar', style: {
+              display: (vertexConnectorFrom == id || dragged) ? 'none' : 'block',
+              position: 'absolute',
+              width: '10em',
+              left: 'calc(100% + 0.5em)',
+              top: '50%',
+              transform: 'translateY(-50%)',
+            } },
+            h( 'a', {
+              className: 'EditVertexLabelAction', 'data-id': id, style: Object.assign({}, symbolStyle), title: 'Edit vertex label' }, "✎"),
+            h( 'a', {
+              className: 'DeleteVertexAction', 'data-id': id, style: Object.assign({}, symbolStyle,
+                {color: 'red'}), title: 'Delete vertex' }, "␡")
+          )
+        ) : null
+      )
     )
   );
 };
@@ -1262,23 +1329,9 @@ var edge = function (data) {
   var labelLeft = from.left + width / 2;
   var labelTop = from.top + height / 2;
 
-  var symbolStyle = {
-    backgroundColor: '#fff',
-    border: '1px solid #999',
-    borderRadius: '50%',
-    color: '#333',
-    cursor: 'pointer',
-    display: 'inline-block',
-    width: '1em',
-    lineHeight: '1em',
-    fontSize: '130%',
-    marginRight: '1px',
-    padding: '2px',
-    textAlign: 'center',
-  };
-
   return (
     h( 'div', null,
+      editing ? modalOverlay : null,
       h( 'div', {
         className: ("Edge" + (selected ? ' --selected' : '')), 'data-index': index, style: Object.assign({}, {left: ("" + (from.left) + units),
           top: ("" + (from.top) + units),
@@ -1286,18 +1339,35 @@ var edge = function (data) {
           lineTransform(from.left, from.top, to.left, to.top, units)) }),
       h( 'div', {
         style: {
-          background: theme.edgeLabelBackground,
+          background: label ? theme.edgeLabelBackground : 'transparen',
           position: 'absolute',
           left: ("" + labelLeft + units),
           top: ("" + labelTop + units),
           transform: 'translate(-50%, -50%)',
+          zIndex: editing ? 101 : 'default',
         } },
         editing ? (
-          h( 'input', { value: label })
+          h( 'div', null,
+            h( 'input', {
+              autofocus: true, className: 'EditEdgeLabelInput', style: {
+                border: '1px solid #999',
+                borderRadius: '1em',
+                fontSize: '100%',
+                padding: '0.25em 1em',
+                width: '8em',
+              }, value: label }),
+            h( 'a', {
+              className: 'EditEdgeLabelOk', 'data-index': index, style: Object.assign({}, symbolStyle,
+                {color: 'green'}), title: 'OK' }, "✓"),
+            h( 'a', {
+              className: 'EditEdgeLabelCancel', 'data-index': index, style: Object.assign({}, symbolStyle,
+                {color: 'red'}), title: 'Cancel' }, "×")
+          )
         ) : (
           h( 'span', {
             className: 'EdgeLabel', 'data-index': index, style: {
-              marginRight: '0.5em'
+              cursor: 'pointer',
+              marginRight: '0.5em',
             } }, label)
         ),
 
@@ -1358,6 +1428,8 @@ var conceptMap = function (data) {
 
         vertices.map(function (item) { return vertex(Object.assign({}, item,
           {dragged: item.id == data.draggedVertexId,
+          dropVertexId: data.dropVertexId,
+          editing: item.id == data.editedVertexId,
           vertexConnectorFrom: data.vertexConnectorFrom,
           selected: item.id == data.selectedVertexId})); }),
 
@@ -1387,46 +1459,27 @@ conceptMap.init = function (node) {
   ); };
   var edgeExists = function (config, v1, v2) { return (
     config.edges
-      .filter(function (edge) { return (edge.from, edge.to) == (v1, v2) ||
-        (edge.from, edge.to) == (v2, v1); }
+      .filter(function (edge) { return (edge.from == v1 && edge.to == v2) ||
+        (edge.from == v2 && edge.to == v1); }
       )
       .length > 0
   ); };
 
   // Event map
   var events = {
-    // focusout: event => {
-      // handleDelegatedEvent(event, {
-        // '.Vertex': target => {
-          // const config = getConfig();
-          // const vertex = getVertexById(config, target.parentNode.dataset.id);
-          // const label = target.innerText;
-          // if (label) {
-            // // finish editing, set new label
-            // delete vertex.editing;
-            // vertex.label = label;
-          // } else {
-            // // delete this vertex and participating edges
-            // config.edges = config.edges.filter(
-              // edge => edge.from != vertex.id && edge.to != vertex.id
-            // );
-            // config.vertices.splice(config.vertices.indexOf(vertex), 1);
-          // }
-          // setConfig(config);
-        // },
-      // });
-    // },
-
     dblclick: function (event) {
       var config = getConfig();
+      var state = node.dataset;
+      var id = Math.random();
       if (event.target === node) {
         config.vertices.push({
-          id: Math.random(),
-          label: 'Untitled',
+          id: id,
+          label: '',
           left: event.offsetX,
           top: event.offsetY,
         });
         setConfig(config);
+        state.editedVertexId = id;
       }
     },
 
@@ -1450,7 +1503,18 @@ conceptMap.init = function (node) {
     dragend: function (event) {
       handleDelegatedEvent(event, {
         '.VertexConnector': function (target) {
-          delete node.dataset.vertexConnectorFrom;
+          var config = getConfig();
+          var state = node.dataset;
+          if (state.dropVertexId) {
+            config.edges.push({
+              from: state.vertexConnectorFrom,
+              label: '',
+              to: state.dropVertexId,
+            });
+            setConfig(config);
+          }
+          delete state.vertexConnectorFrom;
+          delete state.dropVertexId;
         },
         '.Vertex': function (target) {
           var id = target.dataset.id;
@@ -1465,24 +1529,67 @@ conceptMap.init = function (node) {
     },
 
     dragover: function (event) {
-      var target = event.target;
-      node.dataset.dropVertexId = target.matches('.Vertex') ? target.dataset.id : null;
+      var config = getConfig();
+      var state = node.dataset;
+
+      event.preventDefault();
+      handleDelegatedEvent(event, {
+        '.Vertex': function (target) {
+          if (!edgeExists(config, state.selectedVertexId, target.dataset.id)) {
+            state.dropVertexId = target.dataset.id;
+          }
+        },
+      });
+    },
+
+    dragleave: function (event) {
+      var state = node.dataset;
+      handleDelegatedEvent(event, {
+        '.Vertex': function (target) {
+          delete state.dropVertexId;
+        },
+      });
     },
 
     click: function (event) {
       var state = node.dataset;
-      state.selectedVertexId = null;
-      state.selectedEdgeIndex = null;
+      delete state.selectedVertexId;
+      delete state.selectedEdgeIndex;
 
       handleDelegatedEvent(event, {
         '.Vertex': function (target) {
           state.selectedVertexId = target.dataset.id;
         },
+        '.EditVertexLabelAction': function (target) {
+          state.editedVertexId = target.dataset.id;
+        },
+        '.EditVertexLabelOk': function (target) {
+          var config = getConfig();
+          getVertexById(config, target.dataset.id).label =
+            document.querySelector('.EditVertexLabelInput').value;
+          setConfig(config);
+          delete state.editedVertexId;
+        },
+        '.EditVertexLabelCancel': function (target) {
+          delete state.editedVertexId;
+          state.selectedVertexId = target.dataset.id;
+        },
+
         '.Edge, .EdgeLabel': function (target) {
           state.selectedEdgeIndex = target.dataset.index;
         },
         '.EditEdgeLabelAction': function (target) {
           state.editedEdgeIndex = target.dataset.index;
+        },
+        '.EditEdgeLabelOk': function (target) {
+          var config = getConfig();
+          config.edges[target.dataset.index].label =
+            document.querySelector('.EditEdgeLabelInput').value;
+          setConfig(config);
+          delete state.editedEdgeIndex;
+        },
+        '.EditEdgeLabelCancel': function (target) {
+          delete state.editedEdgeIndex;
         },
         '.DeleteEdgeAction': function (target) {
           var config = getConfig();

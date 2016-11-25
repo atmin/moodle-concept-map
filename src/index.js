@@ -12,6 +12,36 @@ const theme = {
   vertexBorderRadius: '5px',
 };
 
+const symbolStyle = {
+  backgroundColor: '#fff',
+  border: '1px solid #999',
+  borderRadius: '50%',
+  color: '#333',
+  cursor: 'pointer',
+  display: 'inline-block',
+  width: '1em',
+  lineHeight: '1em',
+  fontSize: '130%',
+  marginLeft: '0.25em',
+  padding: '2px',
+  textAlign: 'center',
+};
+
+const modalOverlay = (
+  <div
+    className={'ModalOverlay'}
+    style={{
+      backgroundColor: '#fff',
+      opacity: 0.8,
+      position: 'fixed',
+      left: 0,
+      top: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 100,
+    }} />
+);
+
 const lineTransform = (x1, y1, x2, y2, units) => {
   const deltaX = x2 - x1;
   const deltaY = y2 - y1;
@@ -29,6 +59,7 @@ const lineTransform = (x1, y1, x2, y2, units) => {
 const vertex = data => {
   const {
     dragged,
+    dropVertexId,
     editing,
     id,
     label,
@@ -39,7 +70,7 @@ const vertex = data => {
   } = data;
 
   let border = theme.vertexBorder;
-  if (selected) {
+  if (selected || dropVertexId == id) {
     border = theme.selectedVertexBorder;
   }
   if (dragged) {
@@ -47,41 +78,102 @@ const vertex = data => {
   }
 
   return (
-    <div
-      className={'Vertex'}
-      data-id={id}
-      draggable={'true'}
-      style={{
-        background: theme.vertexBackground,
-        border,
-        borderRadius: theme.vertexBorderRadius,
-        position: 'absolute',
-        left: `${left}px`,
-        top: `${top}px`,
-        padding: '0.5em 1em',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 1,
-      }}>
-      <span
-        contenteditable={editing ? '' : null}
-        style={{cursor: 'text'}}>
-        {label}
-      </span>
-      {selected ? (
-        <div
-          className={'VertexConnector'}
-          draggable={'true'}
-          style={{
-            display: (vertexConnectorFrom == id || dragged) ? 'none' : '',
-            background: theme.edgeConnectorBackground,
-            borderRadius: '50%',
-            position: 'absolute',
-            left: 'calc(50% - 0.5em)',
-            top: 'calc(100% - 0.5em)',
-            width: '1em',
-            height: '1em',
-          }} />
-      ) : null}
+    <div>
+      {editing ? modalOverlay : null}
+
+      <div
+        className={'Vertex'}
+        data-id={id}
+        draggable={'true'}
+        style={{
+          background: theme.vertexBackground,
+          border,
+          borderRadius: theme.vertexBorderRadius,
+          position: 'absolute',
+          left: `${left}px`,
+          top: `${top}px`,
+          padding: '0.5em 1em',
+          transform: 'translate(-50%, -50%)',
+          zIndex: editing ? 101 : 1,
+        }}>
+
+        {editing ? (
+          <div>
+            <input
+              autofocus
+              className={'EditVertexLabelInput'}
+              style={{
+                border: '1px solid #999',
+                borderRadius: '1em',
+                fontSize: '100%',
+                padding: '0.25em 1em',
+                width: '5em',
+              }}
+              value={label} />
+            <a
+              className={'EditVertexLabelOk'}
+              data-id={id}
+              style={{
+                ...symbolStyle,
+                color: 'green',
+              }}
+              title={'OK'}>✓</a>
+            <a
+              className={'EditVertexLabelCancel'}
+              data-id={id}
+              style={{
+                ...symbolStyle,
+                color: 'red',
+              }}
+              title={'Cancel'}>×</a>
+          </div>
+        ) : label}
+
+        {selected ? (
+          <a
+            className={'VertexConnector'}
+            draggable={'true'}
+            style={{
+              display: (vertexConnectorFrom == id || dragged) ? 'none' : 'block',
+              background: theme.edgeConnectorBackground,
+              borderRadius: '50%',
+              position: 'absolute',
+              left: 'calc(50% - 0.5em)',
+              top: 'calc(100% - 0.5em)',
+              width: '1em',
+              height: '1em',
+            }}
+            title={'Drag connector to another vertex to create edge'} />
+        ) : null}
+        {selected ? (
+          <div
+            className={'ActionButtonBar'}
+            style={{
+              display: (vertexConnectorFrom == id || dragged) ? 'none' : 'block',
+              position: 'absolute',
+              width: '10em',
+              left: 'calc(100% + 0.5em)',
+              top: '50%',
+              transform: 'translateY(-50%)',
+            }}>
+            <a
+              className={'EditVertexLabelAction'}
+              data-id={id}
+              style={{
+                ...symbolStyle,
+              }}
+              title={'Edit vertex label'}>✎</a>
+            <a
+              className={'DeleteVertexAction'}
+              data-id={id}
+              style={{
+                ...symbolStyle,
+                color: 'red',
+              }}
+              title={'Delete vertex'}>␡</a>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 };
@@ -103,23 +195,9 @@ const edge = data => {
   const labelLeft = from.left + width / 2;
   const labelTop = from.top + height / 2;
 
-  const symbolStyle = {
-    backgroundColor: '#fff',
-    border: '1px solid #999',
-    borderRadius: '50%',
-    color: '#333',
-    cursor: 'pointer',
-    display: 'inline-block',
-    width: '1em',
-    lineHeight: '1em',
-    fontSize: '130%',
-    marginRight: '1px',
-    padding: '2px',
-    textAlign: 'center',
-  };
-
   return (
     <div>
+      {editing ? modalOverlay : null}
       <div
         className={`Edge${selected ? ' --selected' : ''}`}
         data-index={index}
@@ -131,20 +209,50 @@ const edge = data => {
         }} />
       <div
         style={{
-          background: theme.edgeLabelBackground,
+          background: label ? theme.edgeLabelBackground : 'transparen',
           position: 'absolute',
           left: `${labelLeft}${units}`,
           top: `${labelTop}${units}`,
           transform: 'translate(-50%, -50%)',
+          zIndex: editing ? 101 : 'default',
         }}>
         {editing ? (
-          <input value={label} />
+          <div>
+            <input
+              autofocus
+              className={'EditEdgeLabelInput'}
+              style={{
+                border: '1px solid #999',
+                borderRadius: '1em',
+                fontSize: '100%',
+                padding: '0.25em 1em',
+                width: '8em',
+              }}
+              value={label} />
+            <a
+              className={'EditEdgeLabelOk'}
+              data-index={index}
+              style={{
+                ...symbolStyle,
+                color: 'green',
+              }}
+              title={'OK'}>✓</a>
+            <a
+              className={'EditEdgeLabelCancel'}
+              data-index={index}
+              style={{
+                ...symbolStyle,
+                color: 'red',
+              }}
+              title={'Cancel'}>×</a>
+          </div>
         ) : (
           <span
             className={'EdgeLabel'}
             data-index={index}
             style={{
-              marginRight: '0.5em'
+              cursor: 'pointer',
+              marginRight: '0.5em',
             }}>{label}</span>
         )}
 
@@ -220,6 +328,8 @@ const conceptMap = data => {
         {vertices.map(item => vertex({
           ...item,
           dragged: item.id == data.draggedVertexId,
+          dropVertexId: data.dropVertexId,
+          editing: item.id == data.editedVertexId,
           vertexConnectorFrom: data.vertexConnectorFrom,
           selected: item.id == data.selectedVertexId,
         }))}
@@ -251,46 +361,27 @@ conceptMap.init = node => {
   const edgeExists = (config, v1, v2) => (
     config.edges
       .filter(edge =>
-        (edge.from, edge.to) == (v1, v2) ||
-        (edge.from, edge.to) == (v2, v1)
+        (edge.from == v1 && edge.to == v2) ||
+        (edge.from == v2 && edge.to == v1)
       )
       .length > 0
   );
 
   // Event map
   const events = {
-    // focusout: event => {
-      // handleDelegatedEvent(event, {
-        // '.Vertex': target => {
-          // const config = getConfig();
-          // const vertex = getVertexById(config, target.parentNode.dataset.id);
-          // const label = target.innerText;
-          // if (label) {
-            // // finish editing, set new label
-            // delete vertex.editing;
-            // vertex.label = label;
-          // } else {
-            // // delete this vertex and participating edges
-            // config.edges = config.edges.filter(
-              // edge => edge.from != vertex.id && edge.to != vertex.id
-            // );
-            // config.vertices.splice(config.vertices.indexOf(vertex), 1);
-          // }
-          // setConfig(config);
-        // },
-      // });
-    // },
-
     dblclick: event => {
       const config = getConfig();
+      const state = node.dataset;
+      const id = Math.random();
       if (event.target === node) {
         config.vertices.push({
-          id: Math.random(),
-          label: 'Untitled',
+          id,
+          label: '',
           left: event.offsetX,
           top: event.offsetY,
         });
         setConfig(config);
+        state.editedVertexId = id;
       }
     },
 
@@ -314,7 +405,18 @@ conceptMap.init = node => {
     dragend: event => {
       handleDelegatedEvent(event, {
         '.VertexConnector': target => {
-          delete node.dataset.vertexConnectorFrom;
+          const config = getConfig();
+          const state = node.dataset;
+          if (state.dropVertexId) {
+            config.edges.push({
+              from: state.vertexConnectorFrom,
+              label: '',
+              to: state.dropVertexId,
+            });
+            setConfig(config);
+          }
+          delete state.vertexConnectorFrom;
+          delete state.dropVertexId;
         },
         '.Vertex': target => {
           const id = target.dataset.id;
@@ -329,24 +431,67 @@ conceptMap.init = node => {
     },
 
     dragover: event => {
-      const target = event.target;
-      node.dataset.dropVertexId = target.matches('.Vertex') ? target.dataset.id : null;
+      const config = getConfig();
+      const state = node.dataset;
+
+      event.preventDefault();
+      handleDelegatedEvent(event, {
+        '.Vertex': target => {
+          if (!edgeExists(config, state.selectedVertexId, target.dataset.id)) {
+            state.dropVertexId = target.dataset.id;
+          }
+        },
+      });
+    },
+
+    dragleave: event => {
+      const state = node.dataset;
+      handleDelegatedEvent(event, {
+        '.Vertex': target => {
+          delete state.dropVertexId;
+        },
+      });
     },
 
     click: event => {
       const state = node.dataset;
-      state.selectedVertexId = null;
-      state.selectedEdgeIndex = null;
+      delete state.selectedVertexId;
+      delete state.selectedEdgeIndex;
 
       handleDelegatedEvent(event, {
         '.Vertex': target => {
           state.selectedVertexId = target.dataset.id;
         },
+        '.EditVertexLabelAction': target => {
+          state.editedVertexId = target.dataset.id;
+        },
+        '.EditVertexLabelOk': target => {
+          const config = getConfig();
+          getVertexById(config, target.dataset.id).label =
+            document.querySelector('.EditVertexLabelInput').value;
+          setConfig(config);
+          delete state.editedVertexId;
+        },
+        '.EditVertexLabelCancel': target => {
+          delete state.editedVertexId;
+          state.selectedVertexId = target.dataset.id;
+        },
+
         '.Edge, .EdgeLabel': target => {
           state.selectedEdgeIndex = target.dataset.index;
         },
         '.EditEdgeLabelAction': target => {
           state.editedEdgeIndex = target.dataset.index;
+        },
+        '.EditEdgeLabelOk': target => {
+          const config = getConfig();
+          config.edges[target.dataset.index].label =
+            document.querySelector('.EditEdgeLabelInput').value;
+          setConfig(config);
+          delete state.editedEdgeIndex;
+        },
+        '.EditEdgeLabelCancel': target => {
+          delete state.editedEdgeIndex;
         },
         '.DeleteEdgeAction': target => {
           const config = getConfig();
