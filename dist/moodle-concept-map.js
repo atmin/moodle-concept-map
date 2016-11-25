@@ -1177,7 +1177,7 @@ var theme = {
   edgeLabelBackground: 'rgba(255, 255, 255, 0.8)',
   vertexBackground: 'white',
   vertexBorder: '1px solid #999',
-  selectedVertexBorder: '1px solid blue',
+  selectedVertexBorder: '2px solid blue',
   vertexBorderRadius: '5px',
 };
 
@@ -1252,11 +1252,12 @@ var vertex = function (data) {
           background: dropVertexId == id ? '#EEEEFF' : theme.vertexBackground,
           border: border,
           borderRadius: theme.vertexBorderRadius,
+          color: selected ? 'blue' : 'inherit',
           minHeight: '1em',
           position: 'absolute',
           left: (left + "px"),
           top: (top + "px"),
-          padding: '0.5em 1em',
+          padding: editing ? '0.25em' : '0.5em 1em',
           transform: 'translate(-50%, -50%)',
           zIndex: editing ? 101 : 1,
         } },
@@ -1270,7 +1271,7 @@ var vertex = function (data) {
                 fontSize: '100%',
                 padding: '0.25em 1em',
                 width: '5em',
-              }, value: label }),
+              }, placeholder: 'Vertex label', value: label }),
             h( 'a', {
               className: 'EditVertexLabelOk', 'data-id': id, style: Object.assign({}, symbolStyle,
                 {color: 'green'}), title: 'OK' }, "✓"),
@@ -1286,6 +1287,7 @@ var vertex = function (data) {
               color: 'white',
               display: (vertexConnectorFrom == id || dragged) ? 'none' : 'block',
               background: theme.edgeConnectorBackground,
+              border: '2px solid white',
               borderRadius: '50%',
               position: 'absolute',
               left: 'calc(50% - 0.75em)',
@@ -1342,7 +1344,7 @@ var edge = function (data) {
           lineTransform(from.left, from.top, to.left, to.top, units)) }),
       h( 'div', {
         style: {
-          background: label ? theme.edgeLabelBackground : 'transparen',
+          background: label ? theme.edgeLabelBackground : 'transparent',
           position: 'absolute',
           left: ("" + labelLeft + units),
           top: ("" + labelTop + units),
@@ -1358,7 +1360,7 @@ var edge = function (data) {
                 fontSize: '100%',
                 padding: '0.25em 1em',
                 width: '5em',
-              }, value: label }),
+              }, placeholder: 'Edge label', value: label }),
             h( 'a', {
               className: 'EditEdgeLabelOk', 'data-index': index, style: Object.assign({}, symbolStyle,
                 {color: 'green'}), title: 'OK' }, "✓"),
@@ -1369,6 +1371,7 @@ var edge = function (data) {
         ) : (
           h( 'span', {
             className: 'EdgeLabel', 'data-index': index, style: {
+              color: selected ? 'blue' : 'inherit',
               cursor: 'pointer',
               marginRight: '0.5em',
             } }, label)
@@ -1394,20 +1397,34 @@ var edge = function (data) {
   );
 };
 
-var helpPane = (
-  h( 'ul', { style: {
-    fontSize: '60%',
-    listStyleType: 'none',
-    margin: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  } },
-    h( 'li', null, "Double-tap map to add node" ),
-    h( 'li', null, "Tap a node to select" ),
-    h( 'li', null, "Drag a node to move" )
+var addNewVertex = function (style) { return (
+  h( 'div', {
+    style: Object.assign({}, {position: 'fixed',
+      right: 0,
+      top: 0},
+      style) },
+    h( 'a', {
+      className: 'NewVertexAction', draggable: 'true', style: {
+        backgroundColor: 'blue',
+        borderRadius: '50%',
+        color: 'white',
+        cursor: 'move',
+        fontSize: '42px',
+        display: 'block',
+        margin: '16px 16px 16px',
+        width: '64px',
+        lineHeight: '64px',
+        textAlign: 'center',
+      } }, "+"),
+    h( 'div', {
+      style: {
+        color: '#666',
+        fontSize: '12px',
+        lineHeight: 1,
+      textAlign: 'center',
+      } }, "Drag to add", h( 'br', null ), " new vertex")
   )
-);
+); };
 
 var conceptMap = function (data) {
   var ref = JSON.parse(data.config);
@@ -1436,7 +1453,10 @@ var conceptMap = function (data) {
           vertexConnectorFrom: data.vertexConnectorFrom,
           selected: item.id == data.selectedVertexId})); }),
 
-        helpPane
+        addNewVertex({
+          display: data.selectedVertexId || data.selectedEdgeIndex ?
+            'none' : 'block'
+        })
       )
     )
   );
@@ -1500,23 +1520,6 @@ conceptMap.init = function (node) {
 
   // Event map
   var events = {
-    dblclick: function (event) {
-      var config = getConfig();
-      var state = node.dataset;
-      var id = Math.random();
-      if (event.target === node) {
-        config.vertices.push({
-          id: id,
-          label: '',
-          left: event.clientX,
-          top: event.clientY,
-        });
-        setConfig(config);
-        state.editedVertexId = id;
-        setTimeout(function () { return document.querySelector('.EditVertexLabelInput').focus(); });
-      }
-    },
-
     dragstart: function (event) {
       handleDelegatedEvent(event, {
         '.VertexConnector': function (target) {
@@ -1536,6 +1539,21 @@ conceptMap.init = function (node) {
 
     dragend: function (event) {
       handleDelegatedEvent(event, {
+        '.NewVertexAction': function (target) {
+          var config = getConfig();
+          var state = node.dataset;
+          var id = Math.random();
+          config.vertices.push({
+            id: id,
+            label: '',
+            left: event.clientX,
+            top: event.clientY,
+          });
+          setConfig(config);
+          state.editedVertexId = id;
+          setTimeout(function () { return document.querySelector('.EditVertexLabelInput').focus(); });
+        },
+
         '.VertexConnector': function (target) {
           var config = getConfig();
           var state = node.dataset;
@@ -1550,6 +1568,7 @@ conceptMap.init = function (node) {
           delete state.vertexConnectorFrom;
           delete state.dropVertexId;
         },
+
         '.Vertex': function (target) {
           var id = target.dataset.id;
           var config = getConfig();

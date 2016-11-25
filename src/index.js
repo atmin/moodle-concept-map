@@ -8,7 +8,7 @@ const theme = {
   edgeLabelBackground: 'rgba(255, 255, 255, 0.8)',
   vertexBackground: 'white',
   vertexBorder: '1px solid #999',
-  selectedVertexBorder: '1px solid blue',
+  selectedVertexBorder: '2px solid blue',
   vertexBorderRadius: '5px',
 };
 
@@ -89,11 +89,12 @@ const vertex = data => {
           background: dropVertexId == id ? '#EEEEFF' : theme.vertexBackground,
           border,
           borderRadius: theme.vertexBorderRadius,
+          color: selected ? 'blue' : 'inherit',
           minHeight: '1em',
           position: 'absolute',
           left: `${left}px`,
           top: `${top}px`,
-          padding: '0.5em 1em',
+          padding: editing ? '0.25em' : '0.5em 1em',
           transform: 'translate(-50%, -50%)',
           zIndex: editing ? 101 : 1,
         }}>
@@ -110,6 +111,7 @@ const vertex = data => {
                 padding: '0.25em 1em',
                 width: '5em',
               }}
+              placeholder={'Vertex label'}
               value={label} />
             <a
               className={'EditVertexLabelOk'}
@@ -138,6 +140,7 @@ const vertex = data => {
               color: 'white',
               display: (vertexConnectorFrom == id || dragged) ? 'none' : 'block',
               background: theme.edgeConnectorBackground,
+              border: '2px solid white',
               borderRadius: '50%',
               position: 'absolute',
               left: 'calc(50% - 0.75em)',
@@ -212,7 +215,7 @@ const edge = data => {
         }} />
       <div
         style={{
-          background: label ? theme.edgeLabelBackground : 'transparen',
+          background: label ? theme.edgeLabelBackground : 'transparent',
           position: 'absolute',
           left: `${labelLeft}${units}`,
           top: `${labelTop}${units}`,
@@ -231,6 +234,7 @@ const edge = data => {
                 padding: '0.25em 1em',
                 width: '5em',
               }}
+              placeholder={'Edge label'}
               value={label} />
             <a
               className={'EditEdgeLabelOk'}
@@ -254,6 +258,7 @@ const edge = data => {
             className={'EdgeLabel'}
             data-index={index}
             style={{
+              color: selected ? 'blue' : 'inherit',
               cursor: 'pointer',
               marginRight: '0.5em',
             }}>{label}</span>
@@ -290,19 +295,37 @@ const edge = data => {
   );
 };
 
-const helpPane = (
-  <ul style={{
-    fontSize: '60%',
-    listStyleType: 'none',
-    margin: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  }}>
-    <li>Double-tap map to add node</li>
-    <li>Tap a node to select</li>
-    <li>Drag a node to move</li>
-  </ul>
+const addNewVertex = style => (
+  <div
+    style={{
+      position: 'fixed',
+      right: 0,
+      top: 0,
+      ...style,
+    }}>
+    <a
+      className={'NewVertexAction'}
+      draggable={'true'}
+      style={{
+        backgroundColor: 'blue',
+        borderRadius: '50%',
+        color: 'white',
+        cursor: 'move',
+        fontSize: '42px',
+        display: 'block',
+        margin: '16px 16px 16px',
+        width: '64px',
+        lineHeight: '64px',
+        textAlign: 'center',
+      }}>+</a>
+    <div
+      style={{
+        color: '#666',
+        fontSize: '12px',
+        lineHeight: 1,
+      textAlign: 'center',
+      }}>Drag to add<br /> new vertex</div>
+  </div>
 );
 
 const conceptMap = data => {
@@ -337,7 +360,10 @@ const conceptMap = data => {
           selected: item.id == data.selectedVertexId,
         }))}
 
-        {helpPane}
+        {addNewVertex({
+          display: data.selectedVertexId || data.selectedEdgeIndex ?
+            'none' : 'block'
+        })}
       </div>
     </body>
   );
@@ -402,23 +428,6 @@ conceptMap.init = node => {
 
   // Event map
   const events = {
-    dblclick: event => {
-      const config = getConfig();
-      const state = node.dataset;
-      const id = Math.random();
-      if (event.target === node) {
-        config.vertices.push({
-          id,
-          label: '',
-          left: event.clientX,
-          top: event.clientY,
-        });
-        setConfig(config);
-        state.editedVertexId = id;
-        setTimeout(() => document.querySelector('.EditVertexLabelInput').focus());
-      }
-    },
-
     dragstart: event => {
       handleDelegatedEvent(event, {
         '.VertexConnector': target => {
@@ -438,6 +447,21 @@ conceptMap.init = node => {
 
     dragend: event => {
       handleDelegatedEvent(event, {
+        '.NewVertexAction': target => {
+          const config = getConfig();
+          const state = node.dataset;
+          const id = Math.random();
+          config.vertices.push({
+            id,
+            label: '',
+            left: event.clientX,
+            top: event.clientY,
+          });
+          setConfig(config);
+          state.editedVertexId = id;
+          setTimeout(() => document.querySelector('.EditVertexLabelInput').focus());
+        },
+
         '.VertexConnector': target => {
           const config = getConfig();
           const state = node.dataset;
@@ -452,6 +476,7 @@ conceptMap.init = node => {
           delete state.vertexConnectorFrom;
           delete state.dropVertexId;
         },
+
         '.Vertex': target => {
           const id = target.dataset.id;
           const config = getConfig();
