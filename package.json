@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build:js": "rollem",
+    "publish": "git subtree push --prefix dist origin gh-pages",
     "start": "open dist/index.html && npm run watch",
     "test": "echo 'not implemented'",
     "watch": "npm run watch:js",

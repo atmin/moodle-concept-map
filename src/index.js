@@ -450,27 +450,29 @@ conceptMap.init = node => {
   // Event map
   const events = {
     dragstart: event => {
+      const state = node.dataset;
       handleDelegatedEvent(event, {
         '.VertexConnector': target => {
           setTimeout(() => {
-            node.dataset.vertexConnectorFrom = target.parentNode.dataset.id;
+            state.vertexConnectorFrom = target.parentNode.dataset.id;
           });
         },
         '.Vertex': target => {
-          node.dataset.selectedVertexId = target.dataset.id;
-          delete node.dataset.selectedEdgeIndex;
+          state.selectedVertexId = target.dataset.id;
+          delete state.selectedEdgeIndex;
           setTimeout(() => {
-            node.dataset.draggedVertexId = target.dataset.id;
+            state.draggedVertexId = target.dataset.id;
           });
         },
       });
     },
 
     dragend: event => {
+      const state = node.dataset;
+
       handleDelegatedEvent(event, {
         '.NewVertexAction': target => {
           const config = getConfig();
-          const state = node.dataset;
           const id = Math.random();
           config.vertices.push({
             id,
@@ -592,7 +594,7 @@ conceptMap.init = node => {
     },
   };
 
-  Object.keys(events).forEach(key => node.addEventListener(key, events[key]));
+  Object.keys(events).forEach(key => node.addEventListener(key, events[key]), false);
 
   document.addEventListener('keydown', event => {
     const config = getConfig();

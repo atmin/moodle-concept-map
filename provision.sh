@@ -1,10 +1,10 @@
 #!/bin/bash
 export DEBIAN_FRONTEND=noninteractive
 echo "Running operating system updates..."
-apt-get update
-apt-get -y upgrade
+apt update
+apt -y upgrade
 echo "Installing required packages..."
-apt-get -y install \
+apt -y install \
 	apache2 \
 	libapache2-mod-php5 \
 	postgresql \
@@ -96,6 +96,8 @@ php admin/cli/install.php \
 chown www-data:www-data -R /var/www/moodle
 echo "Restarting Apache..."
 service apache2 restart
+echo "Symlinking /vagrant to /var/www/moodle/html/mod/conceptmap"
+ln -s /vagrant /var/www/moodle/html/mod/conceptmap
 cat <<EOF
 Service installed at http://moodle.local/
 

@@ -1542,27 +1542,29 @@ conceptMap.init = function (node) {
   // Event map
   var events = {
     dragstart: function (event) {
+      var state = node.dataset;
       handleDelegatedEvent(event, {
         '.VertexConnector': function (target) {
           setTimeout(function () {
-            node.dataset.vertexConnectorFrom = target.parentNode.dataset.id;
+            state.vertexConnectorFrom = target.parentNode.dataset.id;
           });
         },
         '.Vertex': function (target) {
-          node.dataset.selectedVertexId = target.dataset.id;
-          delete node.dataset.selectedEdgeIndex;
+          state.selectedVertexId = target.dataset.id;
+          delete state.selectedEdgeIndex;
           setTimeout(function () {
-            node.dataset.draggedVertexId = target.dataset.id;
+            state.draggedVertexId = target.dataset.id;
           });
         },
       });
     },
 
     dragend: function (event) {
+      var state = node.dataset;
+
       handleDelegatedEvent(event, {
         '.NewVertexAction': function (target) {
           var config = getConfig();
-          var state = node.dataset;
           var id = Math.random();
           config.vertices.push({
             id: id,
@@ -1684,7 +1686,7 @@ conceptMap.init = function (node) {
     },
   };
 
-  Object.keys(events).forEach(function (key) { return node.addEventListener(key, events[key]); });
+  Object.keys(events).forEach(function (key) { return node.addEventListener(key, events[key]); }, false);
 
   document.addEventListener('keydown', function (event) {
     var config = getConfig();
