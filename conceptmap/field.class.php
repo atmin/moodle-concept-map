@@ -45,16 +45,18 @@ class data_field_conceptmap extends data_field_base {
             if (strlen($content->content) < 1) {
                 return false;
             }
-            $file = file_get_contents(__DIR__ . '/version.php');
+            $escaped_json = htmlspecialchars($content->content);
+            $script = file_get_contents(__DIR__ . '/js/moodle-concept-map.js');
             return "
-              <div style='
-                background-color: #EEE;
-                width: 50vw;
-                height: 600px;
-              '>
-                $content->content
-                <br>$file
+              <div
+                class='ConceptMap'
+                data-config='$escaped_json'
+                style='
+                  width: 50vw;
+                  height: 600px;
+                '>
               </div>
+              <script>$script</script>
             ";
         }
         return false;
