@@ -27,7 +27,7 @@ Moodle will be available at http://moodle.local/
 
 You will need to add a hosts file entry for:
 moodle.local points to 192.168.33.10
-(vargrant Landrush plugin automatically does that)
+(vagrant Landrush plugin automatically does that)
 
 Authentication Details:
 
