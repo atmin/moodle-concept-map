@@ -2,10 +2,10 @@
 
 ## Intro
 
-atmin/moodle-concept-map is a Database Activity field type representing a
+`atmin/moodle-concept-map` is a Moodle Database Activity field type representing a
 [Concept map](https://en.wikipedia.org/wiki/Concept_map). Vertices and edges
 can have labels. If a vertex label is omitted, it becomes invisible while still
-connecting edges, thus arbitrary shapes can be drawn via edges.
+connecting edges, thus arbitrary shapes consisting of straight lines can be drawn.
 
 [Online demo of the component](https://atmin.github.io/moodle-concept-map/)
 
@@ -20,7 +20,9 @@ git clone https://github.com/atmin/moodle-concept-map.git conceptmap
 ## User Guide
 
 Use it like any other database field type. There aren't any specific configuration options.
-When adding/editing a database entry, concept map is editable.
+When adding/editing a database entry, concept map is editable. Click to select a vertex or edge,
+context actions will be revealed. Drag blue (+) circle to create a new vertex. Drag vertices
+to reorder them.
 
 ## Development
 
@@ -48,6 +50,16 @@ Authentication Details:
 - username: admin
 - password: Admin1!
 
-Start development server, will watch src/ and recompile assets:
+Install JavaScript dependencies:
+
+    npm install
+
+Start development server, will watch `src/` and recompile assets:
 
     npm start
+
+Check `package.json` scripts.
+
+## Contributing
+
+Pull requests are welcome. Please, open an issue first to discuss.
