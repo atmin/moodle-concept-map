@@ -64,6 +64,7 @@ const vertex = data => {
     id,
     label,
     left,
+    readonly,
     selected,
     top,
     vertexConnectorFrom,
@@ -92,7 +93,7 @@ const vertex = data => {
       <div
         className={'Vertex'}
         data-id={id}
-        draggable={'true'}
+        draggable={!readonly}
         style={{
           background: dropVertexId == id ? '#EEEEFF' : theme.vertexBackground,
           border,
@@ -307,8 +308,8 @@ const edge = data => {
 const addNewVertex = style => (
   <div
     style={{
-      position: 'fixed',
-      right: 0,
+      position: 'absolute',
+      left: 0,
       top: 0,
       ...style,
     }}>
@@ -338,6 +339,7 @@ const addNewVertex = style => (
 );
 
 const conceptMap = data => {
+  const readonly = JSON.parse(data.readonly || 'false');
   const {
     edges,
     vertices,
@@ -361,7 +363,7 @@ const conceptMap = data => {
           editing: index == data.editedEdgeIndex,
           from: verticesById[item.from],
           index: index,
-          selected: index == data.selectedEdgeIndex,
+          selected: !readonly && index == data.selectedEdgeIndex,
           to: verticesById[item.to],
         }))}
 
@@ -371,11 +373,12 @@ const conceptMap = data => {
           dropVertexId: data.dropVertexId,
           editing: item.id == data.editedVertexId,
           vertexConnectorFrom: data.vertexConnectorFrom,
-          selected: item.id == data.selectedVertexId,
+          readonly: readonly || null,
+          selected: !readonly && item.id == data.selectedVertexId,
         }))}
 
         {addNewVertex({
-          display: hideAddNewVertex ?
+          display: readonly || hideAddNewVertex ?
             'none' : 'block'
         })}
       </div>
@@ -394,6 +397,7 @@ conceptMap.init = node => {
   const RIGHT = 39;
 
   // Utility functions
+  const randomId = () => (((1 + Math.random()) * 0x1000000)|0).toString(16).substring(1);
   const handleDelegatedEvent = (event, selectorHandlers) => {
     const target = event.target;
     const handlerKey = Object.keys(selectorHandlers)
@@ -402,7 +406,13 @@ conceptMap.init = node => {
     (selectorHandlers[handlerKey] || Function.prototype)(target);
   };
   const getConfig = () => JSON.parse(node.dataset.config);
-  const setConfig = config => node.dataset.config = JSON.stringify(config);;
+  const setConfig = config => {
+    node.dataset.config = JSON.stringify(config);
+    if (node.dataset.fieldSelector) {
+      document.querySelector(node.dataset.fieldSelector).value =
+        node.dataset.config;
+    }
+  }
   const getVertexById = (config, id) => (
     config.vertices
       .filter(vertex => vertex.id == id)
@@ -455,59 +465,18 @@ conceptMap.init = node => {
         '.VertexConnector': target => {
           setTimeout(() => {
             state.vertexConnectorFrom = target.parentNode.dataset.id;
+            state.screenX = event.screenX;
+            state.screenY = event.screenY;
           });
         },
         '.Vertex': target => {
           state.selectedVertexId = target.dataset.id;
+          state.screenX = event.screenX;
+          state.screenY = event.screenY;
           delete state.selectedEdgeIndex;
           setTimeout(() => {
             state.draggedVertexId = target.dataset.id;
           });
-        },
-      });
-    },
-
-    dragend: event => {
-      const state = node.dataset;
-
-      handleDelegatedEvent(event, {
-        '.NewVertexAction': target => {
-          const config = getConfig();
-          const id = Math.random();
-          config.vertices.push({
-            id,
-            label: '',
-            left: event.clientX,
-            top: event.clientY,
-          });
-          setConfig(config);
-          state.editedVertexId = id;
-          setTimeout(() => document.querySelector('.EditVertexLabelInput').focus());
-        },
-
-        '.VertexConnector': target => {
-          const config = getConfig();
-          const state = node.dataset;
-          if (state.dropVertexId) {
-            config.edges.push({
-              from: state.vertexConnectorFrom,
-              label: '',
-              to: state.dropVertexId,
-            });
-            setConfig(config);
-          }
-          delete state.vertexConnectorFrom;
-          delete state.dropVertexId;
-        },
-
-        '.Vertex': target => {
-          const id = target.dataset.id;
-          const config = getConfig();
-          const vertex = config.vertices.filter(vertex => vertex.id == id)[0];
-          vertex.left = event.clientX;
-          vertex.top = event.clientY;
-          setConfig(config);
-          delete node.dataset.draggedVertexId;
         },
       });
     },
@@ -534,6 +503,51 @@ conceptMap.init = node => {
           delete state.dropVertexId;
         },
       });
+    },
+
+    drop: event => {
+      const state = node.dataset;
+      const config = getConfig();
+
+      if (state.draggedVertexId) {
+        // dragged vertex
+        const id = state.draggedVertexId;
+        const vertex = config.vertices.filter(vertex => vertex.id == id)[0];
+        const deltaX = event.screenX - state.screenX;
+        const deltaY = event.screenY - state.screenY;
+        vertex.left += deltaX;
+        vertex.top += deltaY;
+        setConfig(config);
+        delete state.draggedVertexId;
+        delete state.screenX;
+        delete state.screenY;
+      }
+      else if (state.vertexConnectorFrom) {
+        // dragged vertex connector
+        if (state.dropVertexId) {
+          config.edges.push({
+            from: state.vertexConnectorFrom,
+            label: '',
+            to: state.dropVertexId,
+          });
+          setConfig(config);
+        }
+        delete state.vertexConnectorFrom;
+        delete state.dropVertexId;
+      }
+      else {
+        // dragged "new vertex" control
+        const id = randomId();
+        config.vertices.push({
+          id,
+          label: '',
+          left: event.clientX,
+          top: event.clientY,
+        });
+        setConfig(config);
+        state.editedVertexId = id;
+        setTimeout(() => document.querySelector('.EditVertexLabelInput').focus());
+      }
     },
 
     click: event => {

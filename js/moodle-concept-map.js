@@ -1231,6 +1231,7 @@ var vertex = function (data) {
   var id = data.id;
   var label = data.label;
   var left = data.left;
+  var readonly = data.readonly;
   var selected = data.selected;
   var top = data.top;
   var vertexConnectorFrom = data.vertexConnectorFrom;
@@ -1256,7 +1257,7 @@ var vertex = function (data) {
       editing ? modalOverlay : null,
 
       h( 'div', {
-        className: 'Vertex', 'data-id': id, draggable: 'true', style: {
+        className: 'Vertex', 'data-id': id, draggable: !readonly, style: {
           background: dropVertexId == id ? '#EEEEFF' : theme.vertexBackground,
           border: border,
           borderRadius: theme.vertexBorderRadius,
@@ -1408,8 +1409,8 @@ var edge = function (data) {
 
 var addNewVertex = function (style) { return (
   h( 'div', {
-    style: Object.assign({}, {position: 'fixed',
-      right: 0,
+    style: Object.assign({}, {position: 'absolute',
+      left: 0,
       top: 0},
       style) },
     h( 'a', {
@@ -1436,6 +1437,7 @@ var addNewVertex = function (style) { return (
 ); };
 
 var conceptMap = function (data) {
+  var readonly = JSON.parse(data.readonly || 'false');
   var ref = JSON.parse(data.config);
   var edges = ref.edges;
   var vertices = ref.vertices;
@@ -1457,7 +1459,7 @@ var conceptMap = function (data) {
           {editing: index == data.editedEdgeIndex,
           from: verticesById[item.from],
           index: index,
-          selected: index == data.selectedEdgeIndex,
+          selected: !readonly && index == data.selectedEdgeIndex,
           to: verticesById[item.to]})); }),
 
         vertices.map(function (item) { return vertex(Object.assign({}, item,
@@ -1465,10 +1467,11 @@ var conceptMap = function (data) {
           dropVertexId: data.dropVertexId,
           editing: item.id == data.editedVertexId,
           vertexConnectorFrom: data.vertexConnectorFrom,
-          selected: item.id == data.selectedVertexId})); }),
+          readonly: readonly || null,
+          selected: !readonly && item.id == data.selectedVertexId})); }),
 
         addNewVertex({
-          display: hideAddNewVertex ?
+          display: readonly || hideAddNewVertex ?
             'none' : 'block'
         })
       )
@@ -1487,6 +1490,7 @@ conceptMap.init = function (node) {
   var RIGHT = 39;
 
   // Utility functions
+  var randomId = function () { return (((1 + Math.random()) * 0x1000000)|0).toString(16).substring(1); };
   var handleDelegatedEvent = function (event, selectorHandlers) {
     var target = event.target;
     var handlerKey = Object.keys(selectorHandlers)
@@ -1495,7 +1499,13 @@ conceptMap.init = function (node) {
     (selectorHandlers[handlerKey] || Function.prototype)(target);
   };
   var getConfig = function () { return JSON.parse(node.dataset.config); };
-  var setConfig = function (config) { return node.dataset.config = JSON.stringify(config); };;
+  var setConfig = function (config) {
+    node.dataset.config = JSON.stringify(config);
+    if (node.dataset.fieldSelector) {
+      document.querySelector(node.dataset.fieldSelector).value =
+        node.dataset.config;
+    }
+  }
   var getVertexById = function (config, id) { return (
     config.vertices
       .filter(function (vertex) { return vertex.id == id; })
@@ -1547,59 +1557,18 @@ conceptMap.init = function (node) {
         '.VertexConnector': function (target) {
           setTimeout(function () {
             state.vertexConnectorFrom = target.parentNode.dataset.id;
+            state.screenX = event.screenX;
+            state.screenY = event.screenY;
           });
         },
         '.Vertex': function (target) {
           state.selectedVertexId = target.dataset.id;
+          state.screenX = event.screenX;
+          state.screenY = event.screenY;
           delete state.selectedEdgeIndex;
           setTimeout(function () {
             state.draggedVertexId = target.dataset.id;
           });
-        },
-      });
-    },
-
-    dragend: function (event) {
-      var state = node.dataset;
-
-      handleDelegatedEvent(event, {
-        '.NewVertexAction': function (target) {
-          var config = getConfig();
-          var id = Math.random();
-          config.vertices.push({
-            id: id,
-            label: '',
-            left: event.clientX,
-            top: event.clientY,
-          });
-          setConfig(config);
-          state.editedVertexId = id;
-          setTimeout(function () { return document.querySelector('.EditVertexLabelInput').focus(); });
-        },
-
-        '.VertexConnector': function (target) {
-          var config = getConfig();
-          var state = node.dataset;
-          if (state.dropVertexId) {
-            config.edges.push({
-              from: state.vertexConnectorFrom,
-              label: '',
-              to: state.dropVertexId,
-            });
-            setConfig(config);
-          }
-          delete state.vertexConnectorFrom;
-          delete state.dropVertexId;
-        },
-
-        '.Vertex': function (target) {
-          var id = target.dataset.id;
-          var config = getConfig();
-          var vertex = config.vertices.filter(function (vertex) { return vertex.id == id; })[0];
-          vertex.left = event.clientX;
-          vertex.top = event.clientY;
-          setConfig(config);
-          delete node.dataset.draggedVertexId;
         },
       });
     },
@@ -1626,6 +1595,51 @@ conceptMap.init = function (node) {
           delete state.dropVertexId;
         },
       });
+    },
+
+    drop: function (event) {
+      var state = node.dataset;
+      var config = getConfig();
+
+      if (state.draggedVertexId) {
+        // dragged vertex
+        var id = state.draggedVertexId;
+        var vertex = config.vertices.filter(function (vertex) { return vertex.id == id; })[0];
+        var deltaX = event.screenX - state.screenX;
+        var deltaY = event.screenY - state.screenY;
+        vertex.left += deltaX;
+        vertex.top += deltaY;
+        setConfig(config);
+        delete state.draggedVertexId;
+        delete state.screenX;
+        delete state.screenY;
+      }
+      else if (state.vertexConnectorFrom) {
+        // dragged vertex connector
+        if (state.dropVertexId) {
+          config.edges.push({
+            from: state.vertexConnectorFrom,
+            label: '',
+            to: state.dropVertexId,
+          });
+          setConfig(config);
+        }
+        delete state.vertexConnectorFrom;
+        delete state.dropVertexId;
+      }
+      else {
+        // dragged "new vertex" control
+        var id$1 = randomId();
+        config.vertices.push({
+          id: id$1,
+          label: '',
+          left: event.clientX,
+          top: event.clientY,
+        });
+        setConfig(config);
+        state.editedVertexId = id$1;
+        setTimeout(function () { return document.querySelector('.EditVertexLabelInput').focus(); });
+      }
     },
 
     click: function (event) {

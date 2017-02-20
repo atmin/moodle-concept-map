@@ -25,6 +25,30 @@
 class data_field_conceptmap extends data_field_base {
     var $type = 'conceptmap';
 
+    function display_add_field($recordid = 0, $formdata = null) {
+        global $CFG, $DB, $OUTPUT;
+        $fieldname = 'field_' . $this->field->id;
+        $value = json_encode(array(
+          vertices => [],
+          edges => [],
+        ));
+
+        if ($formdata) {
+            $value = $formdata->$fieldname;
+        } else if ($recordid) {
+            if ($content = $DB->get_record('data_content', array('fieldid'=>$this->field->id, 'recordid'=>$recordid))) {
+                $value = $content->content;
+            }
+        }
+        $conceptmap = $this->display_conceptmap($value);
+        return "
+          <div>
+            <input name='$fieldname' type='hidden'>
+            $conceptmap
+          </div>
+        ";
+    }
+
     function update_content($recordid, $value, $name='') {
         global $DB;
         $content = new stdClass();
@@ -45,20 +69,59 @@ class data_field_conceptmap extends data_field_base {
             if (strlen($content->content) < 1) {
                 return false;
             }
-            $escaped_json = htmlspecialchars($content->content);
-            $script = file_get_contents(__DIR__ . '/js/moodle-concept-map.js');
-            return "
-              <div
-                class='ConceptMap'
-                data-config='$escaped_json'
-                style='
-                  width: 50vw;
-                  height: 600px;
-                '>
-              </div>
-              <script>$script</script>
-            ";
+            return $this->display_conceptmap($content->content, true);
         }
         return false;
+    }
+
+    function display_conceptmap($content, $readonly) {
+        $fieldname = 'field_' . $this->field->id;
+        $escaped_json = htmlspecialchars($content);
+        $is_readonly = json_encode($readonly);
+        $script = file_get_contents(__DIR__ . '/js/moodle-concept-map.js');
+        return "
+          <style>
+            .Vertex:hover {
+              cursor: move;
+            }
+            .Edge {
+              position: absolute;
+              transform-origin: top left;
+            }
+            .Edge:hover {
+              cursor: pointer;
+            }
+            .Edge:before {
+              content: '';
+              display: block;
+              height: 0;
+              width: 100%;
+              border-top: 1px solid #666;
+            }
+            .Edge.--selected:before,
+            .Edge.--selected:hover:before {
+              border-top: 2px solid blue;
+            }
+            .Edge:hover:before {
+              border-top: 1px solid #AAA;
+            }
+          </style>
+          <div style='
+            height: 600px;
+            width: 60vw;
+            position: relative;
+          '>
+            <div
+              class='ConceptMap'
+              data-config='$escaped_json'
+              data-field-selector='[name=$fieldname]'
+              data-readonly='$is_readonly'
+              style='
+                width: 150%;
+                height: 100%;
+            '><div>
+          </div>
+          <script>$script</script>
+        ";
     }
 }
