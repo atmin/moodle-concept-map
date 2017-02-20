@@ -41,9 +41,10 @@ class data_field_conceptmap extends data_field_base {
             }
         }
         $conceptmap = $this->display_conceptmap($value);
+        $escaped_json = htmlspecialchars($value);
         return "
           <div>
-            <input name='$fieldname' type='hidden'>
+            <input name='$fieldname' type='hidden' value='$escaped_json'>
             $conceptmap
           </div>
         ";
