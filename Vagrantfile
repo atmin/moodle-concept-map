@@ -4,7 +4,7 @@ Vagrant.configure(2) do |config|
 	config.vm.hostname = 'moodle.local'
 	config.vm.box = "ubuntu/trusty64"
 	config.vm.network "private_network", ip: "192.168.33.10"
-        config.vm.synced_folder "conceptmap/", "/var/www/moodle/html/mod/data/field/conceptmap", owner: 'www-data', group: 'www-data'
+        config.vm.synced_folder "./", "/var/www/moodle/html/mod/data/field/conceptmap", owner: 'www-data', group: 'www-data'
 	config.vm.provider "virtualbox" do |vb|
 		vb.name = "moodle"
 		vb.memory = 1024

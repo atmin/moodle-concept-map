@@ -13,7 +13,7 @@ const plugins = [
 
 module.exports = [{
   entry: 'src/index.js',
-  dest: 'conceptmap/js/moodle-concept-map.js',
+  dest: 'js/moodle-concept-map.js',
   plugins: plugins,
 }];
 
