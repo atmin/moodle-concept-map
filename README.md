@@ -1,5 +1,6 @@
 # moodle-concept-map
 
+
 ## Intro
 
 `atmin/moodle-concept-map` is a Moodle Database Activity field type representing a
@@ -8,6 +9,7 @@ can have labels. If a vertex label is omitted, it becomes invisible while still
 connecting edges, thus arbitrary shapes consisting of straight lines can be drawn.
 
 [Online demo of the component](https://atmin.github.io/moodle-concept-map/)
+
 
 ## Moodle instalation
 
@@ -24,31 +26,29 @@ When adding/editing a database entry, concept map is editable. Click to select a
 context actions will be revealed. Drag blue (+) circle to create a new vertex. Drag vertices
 to reorder them.
 
+
 ## Development
 
-Development environment based on https://github.com/digitalsparky/moodle-vagrant
+Development environment based on https://github.com/tmuras/moosh
 
-(Ubuntu 14.04, Apache, PHP5, PostgreSQL, Latest Moodle)
+(Ubuntu 16.04, Apache, PHP7, MySQL, Moodle 3.1)
 
 Requirements:
 
 - Vagrant ( https://www.vagrantup.com/downloads.html )
 - VirtualBox ( https://www.virtualbox.org/ )
+- Node ( https://nodejs.org )
 
 Start virtual machine:
 
     vagrant up
 
-Moodle will be available at http://moodle.local/
-
-You will need to add a hosts file entry for:
-moodle.local points to 192.168.33.10
-(vagrant Landrush plugin automatically does that)
+Moodle will be available at http://192.168.33.10/moodle
 
 Authentication Details:
 
 - username: admin
-- password: Admin1!
+- password: a
 
 Install JavaScript dependencies:
 
@@ -59,6 +59,7 @@ Start development server, will watch `src/` and recompile assets:
     npm start
 
 Check `package.json` scripts.
+
 
 ## Contributing
 
