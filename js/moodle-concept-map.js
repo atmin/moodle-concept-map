@@ -1554,6 +1554,12 @@ conceptMap.init = function (node) {
     dragstart: function (event) {
       var state = node.dataset;
       handleDelegatedEvent(event, {
+        '.NewVertexAction': function (target) {
+          setTimeout(function () {
+            state.screenX = event.screenX;
+            state.screenY = event.screenY;
+          });
+        },
         '.VertexConnector': function (target) {
           setTimeout(function () {
             state.vertexConnectorFrom = target.parentNode.dataset.id;
@@ -1630,11 +1636,14 @@ conceptMap.init = function (node) {
       else {
         // dragged "new vertex" control
         var id$1 = randomId();
+        var newVertex = document.querySelector('.NewVertexAction');
+        var deltaX$1 = event.screenX - state.screenX;
+        var deltaY$1 = event.screenY - state.screenY;
         config.vertices.push({
           id: id$1,
           label: '',
-          left: event.clientX,
-          top: event.clientY,
+          left: newVertex.offsetLeft + newVertex.offsetWidth + deltaX$1,
+          top: newVertex.offsetTop + newVertex.offsetHeight + deltaY$1,
         });
         setConfig(config);
         state.editedVertexId = id$1;

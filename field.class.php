@@ -125,4 +125,38 @@ class data_field_conceptmap extends data_field_base {
           <script>$script</script>
         ";
     }
+
+    function display_search_field($value = '') {
+        return '<label class="accesshide" for="f_'.$this->field->id.'">' . get_string('fieldname', 'data') . '</label>' .
+               '<input type="text" size="16" id="f_'.$this->field->id.'" name="f_'.$this->field->id.'" ' .
+               'value="'.s($value).'" class="form-control d-inline"/>';
+    }
+
+    function parse_search_field() {
+        return optional_param('f_'.$this->field->id, '', PARAM_NOTAGS);
+    }
+
+    function generate_sql($tablealias, $value) {
+        global $DB;
+        static $i=0;
+        $i++;
+        $name = "df_textarea_$i";
+        return array(" ({$tablealias}.fieldid = {$this->field->id} AND ".$DB->sql_like("{$tablealias}.content", ":$name", false).") ", array($name=>"%$value%"));
+    }
+
+    function get_sort_sql($fieldname) {
+        global $DB;
+        return $DB->sql_cast_char2real($fieldname, true);
+    }
+
+    /**
+     * Check if a field from an add form is empty
+     *
+     * @param mixed $value
+     * @param mixed $name
+     * @return bool
+     */
+    function notemptyfield($value, $name) {
+        return strval($value) !== '';
+    }
 }
